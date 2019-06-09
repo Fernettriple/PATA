@@ -122,11 +122,13 @@ LIBRO=pd.DataFrame(index=Titulo_LIBRO)
 #Mensaje de bienvenida
 print('''Bienvenido al PATA (Programa de Automatizacion de Tareas Administrativas) version 1.0
 Este programa sirve para leer Actas en formado .DOCX y crear automaticamente las hojas de ruta, junto con un Excel llamado 'INFO' que en las 3 paginas te deja listo la informacion para pasar a la ODI92, Productividad y Libro virtual
-ACLARACION: solo funciona para archivos que se encuentren en EL MISMO DIRECTORIO que este programa
+
 Cada vez que haya un error(puede ser por error del programa, o porque los oficiales escriben CUALQUIER COSA),
 el programa mostrara la seccion donde DEBERIA estar la informacion y te va a pedir que la introduzcas manualmente.
 Si cuando leas esa seccion, no encontras la informacion, significa que el oficial no la escribio. Es MUY comun que no pongan la secretaria y cosas asi, asi que tene el acta a mano!
 Por favor, ante cualquier duda, consulta''')
+barra()
+print('ACLARACION: solo funciona para archivos que se encuentren en EL MISMO DIRECTORIO que este programa')
 barra()
 print('''ACLARACION MEGA IMPORTANTE:
 EL PROGRAMA TIRA ERRORES SI AL MOMENTO DE INTRODUCIR LOS IMPUTADOS NO SE USA MAYUSCULAS
@@ -493,7 +495,7 @@ for filename in os.listdir('.'):
         
         #Peso de las Drogas. 
         try:
-            spam=getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APERTURA DE','FINALIZADO EL PROCEDIMIENTO')
+            spam=getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APE','FINALIZADO EL PROCEDIMIENTO')
             pesos=re.compile(r'\d*,?\.?\d{3}')
             if 'GRAMOS' in spam:
                 bacon=spam.replace('GRAMOS','GRAMOS\n')
