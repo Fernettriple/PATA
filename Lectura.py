@@ -26,15 +26,6 @@ def mostrarlista():
         else:
             print(str(i)+'. '+TITLE[i].ljust(29,'.')+COOP[i].rjust(40, '.'))
     barra()
-def purge_nums(a,b,c):
-    a=str(a)
-    a=a.split(b)
-    a=a[1]
-    a=a.split(c)
-    a=a[0]
-    for _ in range(len(a)):
-        a=a.strip()
-    return a
 def getData(a,b,c):
     try:
         a=a.split(b)
@@ -134,7 +125,29 @@ Este programa sirve para leer Actas en formado .DOCX y crear automaticamente las
 ACLARACION: solo funciona para archivos que se encuentren en EL MISMO DIRECTORIO que este programa
 Cada vez que haya un error(puede ser por error del programa, o porque los oficiales escriben CUALQUIER COSA),
 el programa mostrara la seccion donde DEBERIA estar la informacion y te va a pedir que la introduzcas manualmente.
+Si cuando leas esa seccion, no encontras la informacion, significa que el oficial no la escribio. Es MUY comun que no pongan la secretaria y cosas asi, asi que tene el acta a mano!
 Por favor, ante cualquier duda, consulta''')
+barra()
+print('''ACLARACION MEGA IMPORTANTE:
+EL PROGRAMA TIRA ERRORES SI AL MOMENTO DE INTRODUCIR LOS IMPUTADOS NO SE USA MAYUSCULAS
+ASI QUE BUENO... USEN MAYUSCULAS''')
+barra()
+print('''Que desea hacer?
+1. Hojas de ruta y Excels
+2. Solo Hojas de Ruta
+3. Solo Excels''')
+while True:
+    MODO=input()
+    if MODO in ('1','2','3'):
+        break
+    elif MODO =='69':
+        print('(͡° ͜ʖ ͡°)')
+        continue
+    elif MODO =='29/9/2018':
+        print('Amo a mi novia')
+        continue
+    else:
+        continue
 barra()
 print('Desea correr el programa en "Modo Seguro"? (Modo seguro te muestra todos los datos leidos ANTES de pasarlos a los excels')
 print('Si/No')
@@ -210,13 +223,15 @@ for filename in os.listdir('.'):
                         eggs=paragraph.text
                         bacon+=1
 
-            spam=purge_nums(spam,':','/')
-            sumario=re.compile(r'(\d)*/((\d)*)?')
-            _=sumario.search(eggs)
-            COOP=[]
-            NumCoop= purge(spam)
-            COOP.append(NumCoop)
-            COOP.append(_.group())
+            Numeros=re.compile(r'((\d)+)')
+            Numero_COOP=Numeros.search(spam)
+            Numeros=re.compile(r'(((\d)+)(/)?((\d)*)?)')
+            Numero_SUM=Numeros.search(eggs)
+            COOP=['','']
+            _=Numero_COOP.group()
+            COOP[0]=_
+            _=Numero_SUM.group()
+            COOP[1]=_
         except:
             print('----'*5)
             print('Error en la lectura del encabezado. Por favor, introduzcalo manualmente')
@@ -271,7 +286,8 @@ for filename in os.listdir('.'):
                         spam.remove(_)
                 except:
                     continue
-            spam.remove(LPS)
+            if LPS in spam:
+                spam.remove(LPS)
             spam=' '.join(spam)
             COOP.append(spam)
         except:
@@ -288,9 +304,15 @@ for filename in os.listdir('.'):
         try:
             spam=getData(doc,'NUMERARIO DE','A LOS FINES')
             NumCC=re.compile(r'((\d)?\d)(\w)?')
-            CC=NumCC.search(spam).group()
-            CC='CC'+CC            
-            COOP.append(purge(spam))
+            if NumCC.search(spam):
+                CC=NumCC.search(spam).group()
+                CC='CC'+CC            
+                COOP.append(purge(spam))
+            elif 'DIVIS' in spam:
+                spam=spam.split('DIVIS')
+                spam='DIVIS'+spam[1]
+                COOP.append(purge(spam))
+                CC=purge(spam)
         except:
             print('Error al leer el nombre de la comiseria/division/etc. Por favor, introduzcalo manualmente:')
             spam=getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES')
@@ -329,7 +351,7 @@ for filename in os.listdir('.'):
                     print('Aca esta el fragmento donde DEBERIA estar el nombre del fiscal\n'+MagInterventor)
                     _=input()
                     COOP.append(_)
-                COOP.append('UNICA')
+                COOP.append('ÚNICA')
                 if dr.search(SecrInterventora):
                     _=dr.search(SecrInterventora).group()
                     if ',' in _:
@@ -338,7 +360,7 @@ for filename in os.listdir('.'):
                     COOP.append(_)
                 else:
                     print('Error:No se ha encontrado el nombre del secretario. Introducilo Manualmente')
-                    print('Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n'+SecrInterventora)
+                    print('Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n'+'SECRE'+SecrInterventora+' EN LA QUE RESULTA')
                     _=input()
                     COOP.append(_) 
             elif juzgado.search(MagInterventor):
@@ -368,10 +390,11 @@ for filename in os.listdir('.'):
                     COOP.append(_)
                 else:
                     print('Error:No se ha encontrado el nombre del secretario. Introducilo Manualmente')
-                    print('Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n'+SecrInterventora)
+                    print('Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n'+'SECRE'+SecrInterventora+' EN LA QUE RESULTA')
                     _=input()
                     COOP.append(_) 
         except:
+            COOP=COOP[:4]
             print('Algo terrible paso con la parte del magisterio interventor. Rellenalo manualmente')
             print('Primero introduzca J o F si es Juzgado o Fiscalia. Si es cualquier otra cosa, este programa no lo soporta. Saque esa Cooperacion y vuelva a correr este programa')
             M=input()
@@ -443,19 +466,18 @@ for filename in os.listdir('.'):
         ##Hora inicial y final
         try:
             spam=getData(doc,'SIENDO LAS','HORAS')
-            if len(spam)==5:
-                spam=spam.replace(',',':')
-                spam=spam.replace('.',':')
-                COOP.append(spam)
+            Hora=re.compile(r'((\d)?\d[,:;.]?\d{2})')
+            if Hora.search(spam):
+                _=Hora.search(spam).group()
+                COOP.append(_)
             else:
                 print('''Error en el formato de la hora inicial. El programa solo admite XX:XX
             Introduzca la hora inicial''')
                 COOP.append(input())
             spam=getData(doc,'TERMINADO EL ACTO, SIENDO LAS','HORAS')
-            if len(spam)==5:
-                spam=spam.replace(',',':')
-                spam=spam.replace('.',':')
-                COOP.append(spam)
+            if Hora.search(spam):
+                _=Hora.search(spam).group()
+                COOP.append(_)
             else:
                 print('''Error en el formato de la hora final. El programa solo admite XX:XX 
                 Introduzca la hora de finalizacion''')
@@ -481,7 +503,6 @@ for filename in os.listdir('.'):
                 bacon=bacon.replace('SUSTANCIA','\nSUSTANCIA')
             if 'MATERIAL' in bacon:
                 bacon=bacon.replace('MATERIAL','\nMATERIAL')
-            
             bacon=bacon.split('\n') #CON ESTO LOGRO SEPARAR EN FRASES QUE EMPIECEN CON 'SUSTANCIA/MATERIAL' Y TERMINEN CON 'GRAMOS'. SUPONGO QUE ESTO CONTENDRA EL PESO DE LA DROGA
             drg= {}
             if 'MDMA' in doc:
@@ -500,26 +521,30 @@ for filename in os.listdir('.'):
             for i in range(0,len(bacon)-1):
                 if 'SUSTANCIA' in bacon[i] or 'MATERIAL' in bacon[i]:
                     if 'PESA' in bacon[i]:
-                        _=pesos.findall(bacon[i])
-                        _=_[0]
-                        _=str(_)
-                        _=_.replace(',','.')
-                        _=float(_)
-                        mariajuana={'VEGETAL','VERDE AMARRONADA','VERDE','VERDEAMARRONADA','VERDE MARRON'}
-                        for v in mariajuana:        
-                            if v in bacon[i]:
-                                print(bacon[i])
-                                Mari += _
-                                Mari=round(Mari,3)
+                        if pesos.findall(bacon[i]):
+                            _=pesos.findall(bacon[i])
+                            _=_[0]
+                            _=str(_)
+                            _=_.replace(',','.')
+                            _=float(_)
+                            mariajuana={'VEGETAL','VERDE AMARRONAD','VERDE','VERDEAMARRONAD','VERDE MARRON'}
+                            for v in mariajuana:
+                                if v in bacon[i]:
+                                    Mari += _
+                                    Mari=round(Mari,3)
+                                    bacon[i]='wea'
+                                else:
+                                    continue
+                            if 'BLANCA' in bacon[i]:
+                                Coca=Coca+_
+                                Coca=round(Coca,3)
                                 bacon[i]='wea'
-                        if 'BLANCA' in bacon[i]:
-                            Coca=Coca+_
-                            Coca=round(Coca,3)
-                            bacon[i]='wea'
-                        if 'AMARI' in bacon[i]:
-                            Paco=Paco+_
-                            Paco=round(Paco,3)
-                            bacon[i]='wea'
+                            if 'AMARI' in bacon[i]:
+                                Paco=Paco+_
+                                Paco=round(Paco,3)
+                                bacon[i]='wea'
+                        else:
+                            continue
                     else:
                         continue
             if Mari != 0:
@@ -594,120 +619,126 @@ for filename in os.listdir('.'):
         #-------------------------------------------------------------------------------------------------------------------------------
         
         #CREACION DE LISTAS Y DATAFRAMES Y OTRAS COSAS QUE NECESITE HACER PARA QUE FUNCIONE ESTA WEA QLA
-        if M=='F': #SI ES FISCALIA, VA F+ EL NUMERO SIN SECRETARIA
-            P=[COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',CC,NumFiscalia,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
-            O=[COOP[0],COOP[11],COOP[12],NumFiscalia,'S1',CC,COOP[1],]
-            L=[COOP[0],COOP[11],COOP[10],NumFiscalia,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],'UN SOBRE', COOP[10],CC]
-        elif M=='J': #SI ES JUZGADO, VA J+NUMERO+S+NUMERO
-            P=[COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',CC,NumJuzgadoySecr,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
-            O=[COOP[0],COOP[11],COOP[12],NumJuzgado,COOP[7],CC,COOP[1]]
-            L=[COOP[0],COOP[11],COOP[10],NumJuzgado,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],'UN SOBRE', COOP[10],CC]
-        OO_Df= pd.DataFrame(data=None, index=Titulo_ODI92)
-        R=U
-        i=0
-        for k,v in drg.items(): #con esto agrego las drogas encontradas
-            if i==0:
-                O.append(k)
-                O.append('')
-                O.append(v)
-                O.append('GRAMOS')
-                i+=1                
-            else:
-                R+=1
-                U=R
-                PP=['','','','','','','',k,'',v,'GRAMOS']
-                PP_Df=pd.DataFrame(data=PP,index=Titulo_ODI92)
-                OO_Df=OO_Df.join(other=PP_Df, lsuffix='_left', rsuffix='_right')
-                OO_Df=OO_Df.dropna()
-                PP=[]
-                PP_Df={}
-        P_Df = pd.DataFrame(data=P,index=Titulo_PROD)
-        O_Df= pd.DataFrame(data=O,index=Titulo_ODI92)
-        O_Df=O_Df.join(other=OO_Df, lsuffix='_left', rsuffix='_right')
-        O_Df=O_Df.dropna()
-        L_Df=pd.DataFrame(data=L,index=Titulo_LIBRO)
-        ODI92=ODI92.join(other=O_Df, lsuffix='_left', rsuffix='_right')
-        LIBRO=LIBRO.join(other=L_Df, lsuffix='_left', rsuffix='_right')
-        LIBRO=LIBRO.drop_duplicates() #no se xq me tira muchas veces el perito
-        LIBRO=LIBRO.loc[Titulo_LIBRO, :]
-        PROD=PROD.join(other=P_Df,lsuffix='_left', rsuffix='_right')
+        if MODO in ('1','3'):    
+            if M=='F': #SI ES FISCALIA, VA F+ EL NUMERO SIN SECRETARIA
+                P=[COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',CC,NumFiscalia,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
+                O=[COOP[0],COOP[11],COOP[12],NumFiscalia,'S1',CC,COOP[1],]
+                L=[COOP[0],COOP[11],COOP[10],NumFiscalia,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],'UN SOBRE', COOP[10],CC]
+            elif M=='J': #SI ES JUZGADO, VA J+NUMERO+S+NUMERO
+                P=[COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',CC,NumJuzgadoySecr,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
+                O=[COOP[0],COOP[11],COOP[12],NumJuzgado,COOP[7],CC,COOP[1]]
+                L=[COOP[0],COOP[11],COOP[10],NumJuzgado,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],'UN SOBRE', COOP[10],CC]
+            OO_Df= pd.DataFrame(data=None, index=Titulo_ODI92)
+            R=U
+            i=0
+            for k,v in drg.items(): #con esto agrego las drogas encontradas
+                if i==0:
+                    O.append(k)
+                    O.append('')
+                    O.append(v)
+                    O.append('GRAMOS')
+                    i+=1                
+                else:
+                    R+=1
+                    U=R
+                    PP=[COOP[0],'','','','','','',k,'',v,'GRAMOS']
+                    PP_Df=pd.DataFrame(data=PP,index=Titulo_ODI92)
+                    OO_Df=OO_Df.join(other=PP_Df, lsuffix='_left', rsuffix='_right')
+                    OO_Df=OO_Df.dropna()
+                    PP=[]
+                    PP_Df={}
+            P_Df = pd.DataFrame(data=P,index=Titulo_PROD)
+            O_Df= pd.DataFrame(data=O,index=Titulo_ODI92)
+            O_Df=O_Df.join(other=OO_Df, lsuffix='_left', rsuffix='_right')
+            O_Df=O_Df.dropna()
+            L_Df=pd.DataFrame(data=L,index=Titulo_LIBRO)
+            ODI92=ODI92.join(other=O_Df, lsuffix='_left', rsuffix='_right')
+            LIBRO=LIBRO.join(other=L_Df, lsuffix='_left', rsuffix='_right')
+            LIBRO=LIBRO.drop_duplicates() #no se xq me tira muchas veces el perito
+            LIBRO=LIBRO.loc[Titulo_LIBRO, :]
+            PROD=PROD.join(other=P_Df,lsuffix='_left', rsuffix='_right')
         #-------------------------------------------------------------------------------------------------------------------------------
         
         #ACA VA LA HOJA DE RUTA
-        shutil.copy('HDR.docx', 'HOJA DE RUTA DE '+COOP[0]+'.docx')
-        hdr= docx.Document('HOJA DE RUTA DE '+COOP[0]+'.docx')
-        def replace_string(filename,viejo,nuevo):
-            for table in filename.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for p in cell.paragraphs:                                
-                            if viejo in p.text:
-                                inline = p.runs
-                                # Loop added to work with runs (strings with same style)
-                                for i in range(len(inline)):
-                                    if viejo in inline[i].text:
-                                        text = inline[i].text.replace(viejo, nuevo)
-                                        inline[i].text = text
-            return 1
-                
-        
-        replace_string(hdr,'!',COOP[0])
-        replace_string(hdr,'$',COOP[11])
-        replace_string(hdr,'%',COOP[1])
-        replace_string(hdr,'&',CC)
-        if M=='F':
-            replace_string(hdr,'*',('FISCALIA PENAL CONTRAVENCIONAL Y DE FALTAS N°'+COOP[5]+' A CARGO DE LA '+COOP[6]))
-            replace_string(hdr,'ç',(COOP[7]+' A CARGO DE '+COOP[8]))
-        elif M=='J':
-            replace_string(hdr,'*',('JUZGADO FEDERAL BUSCAR QUE TIENE QUE DECIR N°'+COOP[5]+' A CARGO DE LA '+COOP[6]))
-            replace_string(hdr,'ç',(COOP[7]+' A CARGO DE '+COOP[8]))
-        else:
-            print('Error importante, no puedo identificar si es Fiscalia o Juzgado, se dejara esa parte de la hoja de ruta en blanco')
-            continue
-        replace_string(hdr,'¨',COOP[9])
-        replace_string(hdr,'<',(COOP[10]+'  DNI: '+ Nums[COOP[10]]))
-        replace_string(hdr,'>',(COOP[3]+' LP: '+COOP[2]))
-        replace_string(hdr,'+',COOP[12])
-        replace_string(hdr,'-',COOP[13])
-        if COOP[14]!='NO HAY':
-            replace_string(hdr,'DR1',('MDMA: '+COOP[14]))
-        else:
-            replace_string(hdr,'DR1','')
-        if COOP[15]!='NO HAY':
-            replace_string(hdr,'DR2',('M: '+COOP[15]))
-        else:
-            replace_string(hdr,'DR2','')
-        if COOP[16]!='NO HAY':
-            replace_string(hdr,'DR3',('CC: '+COOP[16]))
-        else:
-            replace_string(hdr,'DR3','')
-        if COOP[17]!='NO HAY':
-            replace_string(hdr,'DR4',('BC: '+COOP[17]))
-        else:
-            replace_string(hdr,'DR4','')
-        hdr.save('HOJA DE RUTA DE '+COOP[0]+'.docx')                
+        if MODO in ('1','2'):
+            shutil.copy('HDR.docx', 'HOJA DE RUTA DE '+COOP[0]+'.docx')
+            hdr= docx.Document('HOJA DE RUTA DE '+COOP[0]+'.docx')
+            def replace_string(filename,viejo,nuevo):
+                for table in filename.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            for p in cell.paragraphs:                                
+                                if viejo in p.text:
+                                    inline = p.runs
+                                    # Loop added to work with runs (strings with same style)
+                                    for i in range(len(inline)):
+                                        if viejo in inline[i].text:
+                                            text = inline[i].text.replace(viejo, nuevo)
+                                            inline[i].text = text
+                return 1
+                    
+            
+            replace_string(hdr,'!',COOP[0])
+            replace_string(hdr,'$',COOP[11])
+            replace_string(hdr,'%',COOP[1])
+            replace_string(hdr,'&',CC)
+            if M=='F':
+                replace_string(hdr,'*',('FISCALIA PENAL CONTRAVENCIONAL Y DE FALTAS N°'+COOP[5]+' A CARGO DE LA '+COOP[6]))
+                replace_string(hdr,'ç',(COOP[7]+' A CARGO DE '+COOP[8]))
+            elif M=='J':
+                replace_string(hdr,'*',('JUZGADO FEDERAL BUSCAR QUE TIENE QUE DECIR N°'+COOP[5]+' A CARGO DE LA '+COOP[6]))
+                replace_string(hdr,'ç',(COOP[7]+' A CARGO DE '+COOP[8]))
+            else:
+                print('Error importante, no puedo identificar si es Fiscalia o Juzgado, se dejara esa parte de la hoja de ruta en blanco')
+                continue
+            replace_string(hdr,'¨',COOP[9])
+            replace_string(hdr,'<',(COOP[10]+'  DNI: '+ Nums[COOP[10]]))
+            replace_string(hdr,'>',(COOP[3]+' LP: '+COOP[2]))
+            replace_string(hdr,'+',COOP[12])
+            replace_string(hdr,'-',COOP[13])
+            if COOP[14]!='NO HAY':
+                replace_string(hdr,'DR1',('MDMA: '+COOP[14]))
+            else:
+                replace_string(hdr,'DR1','')
+            if COOP[15]!='NO HAY':
+                replace_string(hdr,'DR2',('M: '+COOP[15]))
+            else:
+                replace_string(hdr,'DR2','')
+            if COOP[16]!='NO HAY':
+                replace_string(hdr,'DR3',('CC: '+COOP[16]))
+            else:
+                replace_string(hdr,'DR3','')
+            if COOP[17]!='NO HAY':
+                replace_string(hdr,'DR4',('BC: '+COOP[17]))
+            else:
+                replace_string(hdr,'DR4','')
+            hdr.save('HOJA DE RUTA DE '+COOP[0]+'.docx')                
         U+=1
         L=[]
         O=[]
         P=[]
         PP=[]
-        Cantidad_de_cooperaciones_leidas=Cantidad_de_cooperaciones_leidas.append(COOP[0])
+        Cantidad_de_cooperaciones_leidas.append(COOP[0])
         continue
     else:
         continue
         
 #-------------------------------------------------------------------------------------------------------------------------------
 #ACA AGARRO LOS DF Y LOS PASO AL EXCEL   
-PROD=PROD.dropna()
-PROD=PROD.transpose()
-ODI92=ODI92.dropna()
-ODI92=ODI92.transpose()
-LIBRO=LIBRO.dropna()
-LIBRO=LIBRO.transpose()
-with pd.ExcelWriter('Info.xlsx') as writer:  
-    PROD.to_excel(writer, sheet_name='PROD')
-    ODI92.to_excel(writer, sheet_name='ODI92')
-    LIBRO.to_excel(writer, sheet_name='LIBRO')
+if MODO in ('2','3'):    
+    PROD=PROD.dropna()
+    PROD=PROD.transpose()
+    PROD=PROD.sort_values(by='Nro')
+    ODI92=ODI92.dropna()
+    ODI92=ODI92.transpose()
+    ODI92=ODI92.sort_values(by='N° de procedimiento')
+    LIBRO=LIBRO.dropna()
+    LIBRO=LIBRO.transpose()
+    LIBRO=LIBRO.sort_values(by='COOPERACION')
+    with pd.ExcelWriter('Info.xlsx') as writer:  
+        PROD.to_excel(writer, sheet_name='PROD')
+        ODI92.to_excel(writer, sheet_name='ODI92')
+        LIBRO.to_excel(writer, sheet_name='LIBRO')
 barra()
 print('Programa terminado. :^D')
 Cantidad_de_cooperaciones_leidas=', '.join(Cantidad_de_cooperaciones_leidas)
