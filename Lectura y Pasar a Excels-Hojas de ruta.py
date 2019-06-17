@@ -50,6 +50,7 @@ def barra():
 Nums= {'DI BLASI':'29076875',
        'SALBATIERRA': '35096157',
        'FERNANDEZ': '35417114',
+       'FERNÁNDEZ': '35417114',
        'REHAK': '31453',
        'ZORNETTA' : '35246371',
        'RODRIGUEZ': '4032',
@@ -102,6 +103,7 @@ Titulo_ODI92=[  'N° de procedimiento',
 ODI92=pd.DataFrame(index=Titulo_ODI92)
 
 Titulo_LIBRO=[  'COOPERACION',
+                'GAP',
                 'FECHA',
                 'PERITO',
                 'JUZGADO/FISCALIA',
@@ -114,8 +116,22 @@ Titulo_LIBRO=[  'COOPERACION',
                 'IMPUTADO',
                 'MATERIAL RECIBIDO',
                 'PERITO',
+                'FECHA DE SALIDA',
                 'DEPENDENCIA QUE RECIBE EL MATERIAL']
 LIBRO=pd.DataFrame(index=Titulo_LIBRO)
+
+Titulo_Pericias=['FECHA DE INGRESO',
+                'FECHA DE TAREA DE CAMPO',
+                'FECHA DE ELEVACION',
+                'PERITO ASIGNADO',
+                'ELEMENTOS A PERITAR',
+                'TIPO DE PERICIA',
+                'CARATULA',
+                'CAUSA',
+                'N° DE SUMARIO',
+                'DEPENDENCIA INSTRUCTORA',
+                'MAGISTRADO INTERVENTOR']
+PERICIAS=pd.DataFrame(index=Titulo_Pericias)            
 #-------------------------------------------------------------------------------------------------------------------------------
 
 #MENSAJE DE BIENVENIDA
@@ -530,6 +546,14 @@ for filename in os.listdir('.'):
                             _=_.replace(',','.')
                             _=float(_)
                             mariajuana={'VEGETAL','VERDE AMARRONAD','VERDE','VERDEAMARRONAD','VERDE MARRON'}
+                            if _>1000:
+                                print('Este numero, es un peso de droga o algun otro numero?\n'+_)
+                                print('Si esta bien, apreta enter. Si no cualquier cosa y el programa descartara el numero y seguira leyendo')
+                                meme=input()
+                                if meme != '':
+                                    _=0
+                                else:
+                                    continue
                             for v in mariajuana:
                                 if v in bacon[i]:
                                     Mari += _
@@ -578,6 +602,25 @@ for filename in os.listdir('.'):
                 Title.append('Peso de Base de Cocaina')
         except:
             print('Error NEFASTO a la hora de leer las drogas. Por favor, saque la cooperacion y vuelva a correr el programa(algun dia por ahi introduzco el codigo necesario para arreglar este error, si me aumentan el sueldo..)')
+            COOP.append('ERROR EN LA CARGA DE LAS DROGAS')
+            COOP.append('ERROR EN LA CARGA DE LAS DROGAS')
+            COOP.append('ERROR EN LA CARGA DE LAS DROGAS')
+            COOP.append('ERROR EN LA CARGA DE LAS DROGAS')
+            drg['Error en la carga de drogas']='Error'
+            
+        #-------------------------------------------------------------------------------------------------------------------------------
+        #CANTIDAD DE SOBRES
+        try:
+            spam=getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APE','FINALIZADO EL PROCEDIMIENTO')
+            Sobr=re.compile(r'(SOBRE(S)?)')
+            if Sobr.search(spam):
+                _=Sobr.search(spam).group()
+                bacon=spam.replace(_,_+'WEA')
+                Sobre=getData(bacon,'DE','WEA')
+        except:
+            print('Hubo un error. Cuantos sobres son en esta pericia? Introduzcalo a continuacion, por ejemplo "DOS SOBRES"')
+            Sobre=input()
+
         #-------------------------------------------------------------------------------------------------------------------------------
         
         #CHECKEO QUE ESTE TODO BIEN. RE HACER TODO. VER COMO HAGO PARA QUE NO 
@@ -602,6 +645,7 @@ for filename in os.listdir('.'):
                 if input()!='':
                     print('Introduzca por favor el valor correcto (o una version mas resumida, sin omitir los datos IMPORTANTES)')
                     COOP[i]=input()
+
         #-------------------------------------------------------------------------------------------------------------------------------
         
         #Checkeo al final SI ESTA EN "MODO SEGURO"
@@ -625,11 +669,14 @@ for filename in os.listdir('.'):
             if M=='F': #SI ES FISCALIA, VA F+ EL NUMERO SIN SECRETARIA
                 P=[COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',CC,NumFiscalia,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
                 O=[COOP[0],COOP[11],COOP[12],NumFiscalia,'S1',CC,COOP[1],]
-                L=[COOP[0],COOP[11],COOP[10],NumFiscalia,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],'UN SOBRE', COOP[10],CC]
+                L=[COOP[0],'',COOP[11],COOP[10],NumFiscalia,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],Sobre, COOP[10],COOP[11],CC]
+                PER=[COOP[11],COOP[11],COOP[11],COOP[10],Sobre, 'TEST ORIENTATIVO Y PESAJE','LEY 23737', '',COOP[1],CC,NumFiscalia]
             elif M=='J': #SI ES JUZGADO, VA J+NUMERO+S+NUMERO
                 P=[COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',CC,NumJuzgadoySecr,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
                 O=[COOP[0],COOP[11],COOP[12],NumJuzgado,COOP[7],CC,COOP[1]]
                 L=[COOP[0],COOP[11],COOP[10],NumJuzgado,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],'UN SOBRE', COOP[10],CC]
+                PER=[COOP[11],COOP[11],COOP[11],COOP[10],Sobre, 'TEST ORIENTATIVO Y PESAJE','LEY 23737', '',COOP[1],CC,NumJuzgadoySecr]
+
             OO_Df= pd.DataFrame(data=None, index=Titulo_ODI92)
             R=U
             i=0
@@ -654,11 +701,13 @@ for filename in os.listdir('.'):
             O_Df=O_Df.join(other=OO_Df, lsuffix='_left', rsuffix='_right')
             O_Df=O_Df.dropna()
             L_Df=pd.DataFrame(data=L,index=Titulo_LIBRO)
+            PER_Df=pd.DataFrame(data=PER,index=Titulo_Pericias)
             ODI92=ODI92.join(other=O_Df, lsuffix='_left', rsuffix='_right')
             LIBRO=LIBRO.join(other=L_Df, lsuffix='_left', rsuffix='_right')
             LIBRO=LIBRO.drop_duplicates() #no se xq me tira muchas veces el perito
             LIBRO=LIBRO.loc[Titulo_LIBRO, :]
             PROD=PROD.join(other=P_Df,lsuffix='_left', rsuffix='_right')
+            PERICIAS=PERICIAS.join(other=PER_Df,lsuffix='_left', rsuffix='_right')
         #-------------------------------------------------------------------------------------------------------------------------------
         
         #ACA VA LA HOJA DE RUTA
@@ -727,7 +776,7 @@ for filename in os.listdir('.'):
         
 #-------------------------------------------------------------------------------------------------------------------------------
 #ACA AGARRO LOS DF Y LOS PASO AL EXCEL   
-if MODO in ('2','3'):    
+if MODO in ('1','3'):    
     PROD=PROD.dropna()
     PROD=PROD.transpose()
     PROD=PROD.sort_values(by='Nro')
@@ -737,15 +786,21 @@ if MODO in ('2','3'):
     LIBRO=LIBRO.dropna()
     LIBRO=LIBRO.transpose()
     LIBRO=LIBRO.sort_values(by='COOPERACION')
+    PERICIAS=PERICIAS.dropna()
+    PERICIAS=PERICIAS.transpose()
+    PERICIAS=PERICIAS.sort_values(by='FECHA DE INGRESO')
     with pd.ExcelWriter('Info.xlsx') as writer:  
-        PROD.to_excel(writer, sheet_name='PROD')
+        PROD.to_excel(writer, sheet_name='PRODUCTIVIDAD')
         ODI92.to_excel(writer, sheet_name='ODI92')
-        LIBRO.to_excel(writer, sheet_name='LIBRO')
+        LIBRO.to_excel(writer, sheet_name='LIBRO VIRTUAL')
+        PERICIAS.to_excel(writer, sheet_name='PERICIAS ADEUDADAS')
 barra()
 print('Programa terminado. :^D')
 Cantidad_de_cooperaciones_leidas=', '.join(Cantidad_de_cooperaciones_leidas)
 print('Se leyeron las siguientes cooperaciones: '+Cantidad_de_cooperaciones_leidas)
 barra()
+print('Nos vemos la proxima! Besis.\n'+'Presione enter para salir')
+input()
 ##TO DO LIST:
 ## REEMPLAZAR TODOS LOS .APPEND() POR DEFINIR UNA LISTA AL PRINCIPIO CON TODOS LOS VALORES COMO
 #  "ERROR DE TAL COSA" Y EN LUAR DE IR APPENDEANDO, IR REEMPLAZANDO. ES MEJOR PORQ ME EVITA
