@@ -1,0 +1,18 @@
+from PyPDF2 import PdfFileWriter, PdfFileReader
+import glob
+import sys
+ 
+print('Holis, este programa es MUY sencillo. Agarras el pdf con todas las actas JUNTAS(en un solo archivo) y te lo divide cada 2 paginas. Si el acta tiene 3 hojas, no sirve!')
+QUE_ES_LO_QUE_VAS_A_DIVIDIR=input('El pdf TIENE QUE SER llamado "acta", si no no lo lee. Por favor,  introduzca si lo que va a dividir son ACTAS o RECIBOS para continuar    ').upper()
+pdf = open('acta.pdf', 'rb') 
+inputpdf = PdfFileReader(pdf, "rb")
+for i in range(inputpdf.numPages // 2):        
+    output = PdfFileWriter()
+    output.addPage(inputpdf.getPage(i * 2))
+    if i * 2 + 1 <  inputpdf.numPages:
+        output.addPage(inputpdf.getPage(i * 2 + 1))
+    outputStream = open(QUE_ES_LO_QUE_VAS_A_DIVIDIR+' SA0{}-19'.format(str(i+1))+'.pdf', 'wb')
+    output.write(outputStream)
+    outputStream.close()
+input('Trabajo hecho! Presione cualquier cosa para cerrar')
+exit()
