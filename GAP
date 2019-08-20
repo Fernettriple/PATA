@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+
+
+import csv
+import os
+import selenium
+import time
+import openpyxl
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import pandas as pd
+from openpyxl import Workbook
+
+def barra():
+    print('~'*80)
+def xpath_click(path):
+        timer=0
+        while True:
+                try:
+                        driver.find_element_by_xpath(path).click()
+                        time.sleep(1)
+                        break
+                
+                except:
+                        time.sleep(2)
+                        timer+=1
+                        if timer > 20:
+                                _=input('El GAP esta trabadisimo (o algo terrible paso) al tratar de clickear el boton {}. Cuando se destrabe, presiona ENTER o escribi "SKIP" para saltear el paso   '.format(path)).upper()
+                                if _=='SKIP':
+                                        break
+                                elif _=='PATH':
+                                        path=input('Cual es el xpath?  ')
+                                        continue
+                        continue
+def xpath_send(path,Keys):
+        timer=0
+        while True:
+                try: 
+                        driver.find_element_by_xpath(path).clear()
+                        time.sleep(1)         
+                        driver.find_element_by_xpath(path).send_keys(Keys)
+                        time.sleep(1)
+                        break                
+                except:
+                        time.sleep(2)
+                        timer+=1
+                        if timer > 20:
+                                _=input('El GAP esta trabadisimo (o algo terrible paso) al tratar de mandar {}. Cuando se destrabe, presiona ENTER o escribi "SKIP" para saltear el paso   '.format(Keys)).upper()
+                                if _=='SKIP':
+                                        break
+                                elif _=='PATH':
+                                        path=input('Cual es el xpath?  ')
+                                        continue
+
+                        continue   
+def xpath_enter(path):
+        timer=0
+        while True:
+                try:                
+                        driver.find_element_by_xpath(path).send_keys(Keys.ENTER)
+                        time.sleep(1)
+                        break                
+                except:
+                        time.sleep(2)
+                        timer+=1
+                        if timer > 20:
+                                _=input('El GAP esta trabadisimo (o algo terrible paso) al tratar de clickear el boton {}. Cuando se destrabe, presiona ENTER o escribi "SKIP" para saltear el paso   '.format(path)).upper()
+
+def agregar_droga(droga):        
+        xpath_click('//*[@id="agregarObjeto"]')
+        xpath_click('//*[@id="select2-TipoObjeto-container"]')
+        xpath_send('/html/body/span/span/span[1]/input','DROGAS')
+        xpath_enter('/html/body/span/span/span[1]/input')
+        xpath_click('/html/body/div[1]/div[10]/section/div/div[1]/div/div[2]/div/span/span[1]/span')
+        xpath_send('/html/body/div[1]/div[10]/section/div/div[1]/div/div[2]/div/span/span[1]/span/ul/li/input','PRUEBA')
+        xpath_enter('/html/body/div[1]/div[10]/section/div/div[1]/div/div[2]/div/span/span[1]/span/ul/li/input')
+        xpath_click('//*[@id="select2-TipoUnidad-container"]')
+        xpath_send('/html/body/span/span/span[1]/input','GRAMO')
+        xpath_enter('/html/body/span/span/span[1]/input')
+        xpath_click('//*[@id="select2-ContenedorDrogas-container"]')
+        xpath_send('/html/body/span/span/span[1]/input','ENVOLTORIO')
+        xpath_enter('/html/body/span/span/span[1]/input')
+        time.sleep(1)
+        if droga =='MDMA':
+                xpath_click('//*[@id="select2-TipoDrogas1-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','ANFETAMINAS')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_click('//*[@id="select2-DrogasNombre-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','metanfe')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_send('//*[@id="CantidadDrogas"]',COOP[14])
+        elif droga =='MARI':
+                xpath_click('//*[@id="select2-TipoDrogas1-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','CANNABIS')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_click('//*[@id="select2-DrogasNombre-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','MARIHUANA')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_send('//*[@id="CantidadDrogas"]',COOP[15])
+        elif droga =='CC':
+                xpath_click('//*[@id="select2-TipoDrogas1-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','COCAINA')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_click('//*[@id="select2-DrogasNombre-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','SALES')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_send('//*[@id="CantidadDrogas"]',COOP[16])
+        elif droga =='BC':
+                xpath_click('//*[@id="select2-TipoDrogas1-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','COCAINA')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_click('//*[@id="select2-DrogasNombre-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','PASTA BASE DE COCAINA')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_send('//*[@id="CantidadDrogas"]',COOP[17])
+        elif droga =='Otros':
+                xpath_click('//*[@id="select2-TipoDrogas1-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','OTROS')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_send('//*[@id="OtrosTipoDrogas"]',COOP[21])
+                xpath_send('//*[@id="CantidadDrogas"]',COOP[22])
+        xpath_click('//*[@id="BotonGrabarObjeto"]')
+        xpath_click('/html/body/div[8]/div/div/div[2]/button[2]')
+        xpath_click('/html/body/div[8]/div/div/div[3]/button[1]')
+#-------------------------------------------------------------------------------------------------------------------------------
+#abro el gap
+print('''
+Bienvenido al modulo de carga de GAP.
+A diferencia del modulo PATA, este tiene bastante poca interaccion, ya que debido a la naturaleza de las paginas webs, no hay mucho para "introducir manualmente"
+Lo unico que puede llegar a pasar, es que el BENDITO gap se trabe, como siempre, entonces el programa al notar que esta todo trabado se pausara y te pedira que apretes "ENTER"(o cualquier tecla)
+para seguir con la subida. En cualquier momento podes cerrar esto, lo que si te quedara abierto la actuacion.
+Todos los numeros de gap, junto a su cooperacion se exportaran a un excel que estara en la misma carpeta que este archivo.
+ACLARACION:
+Este programa usa archivos .csv para sacar la informacion. Estos archivos son producidos por el PATA asi que primero si o si tenes que correr el PATA.
+''')
+
+driver = webdriver.Chrome()
+driver.get('http://10.74.50.112/gap/index.php')
+driver.maximize_window()
+GAPS_HECHOS=[]
+COOP_HECHAS=[]
+xpath_send('//*[@id="txtUsuario"]','4032')
+xpath_send('//*[@id="txtPassword"]','GEVR3275')
+xpath_click('//*[@id="boton_enviar"]')
+Modo=input('Presione enter para que se abran actuaciones nuevas o cualquier otro boton para usar GAPs abiertos     ')
+#-------------------------------------------------------------------------------------------------------------------------------
+for filename in os.listdir('.'):
+        if filename.endswith('.csv'):
+                with open(filename, 'r') as csvFile:
+                        reader = csv.reader(csvFile)
+                        for row in reader:
+                                COOP=row       
+                #----------------------------------------------------------------------------------------------------------------
+                #NUEVA ACTUACION
+                if Modo=='':
+                        driver.get('http://10.74.50.112/gap/index.php?modulo=caratula&accion=index&procedencia=nuevaActuacion')
+                        xpath_click('//*[@id="TipoHecho"]/div/div/div[2]/div[2]/div[1]')
+                else:
+                        input('Aprete cualquier tecla cuando este en el GAP que desea usar    ')
+                        driver.switch_to.window(driver.window_handles[1])
+                        xpath_click('//*[@id="editarCaratula"]')
+                        time.sleep(5)
+                barra()
+                print('ACTUALMENTE LEYENDO LA COOPERACION : '+COOP[0])
+                
+                barra()
+                #------------------------------
+                #RELLENADO DE LA CARATULA
+                xpath_send('//*[@id="caratulaObservacion"]','APERTURA')
+                _=COOP[1].split('/')
+                COOP[1]=_[0]
+                xpath_send('//*[@id="RelExtNro"]',COOP[1])
+                xpath_send('//*[@id="RelExtAnio"]','2019')
+                if len(COOP[4])<3:
+                        COOP[4]='CC'+COOP[4]
+                xpath_send('//*[@id="RelExtObs"]',COOP[4])
+                xpath_click('//*[@id="DivOrigen"]/div[2]/div[1]/div/div/div/div/div/div[1]/div[1]/div/div/span/span[1]/span/span[2]')
+                xpath_send('/html/body/span/span/span[1]/input','Otros')
+                xpath_send('/html/body/span/span/span[1]/input',Keys.ENTER)
+                xpath_click('//*[@id="DivOrigen"]/div[2]/div[1]/div/div/div/div/div/div[1]/div[2]/div/span/span[1]/span/span[2]')
+                xpath_send('/html/body/span/span/span[1]/input','Cooperacion Judicial')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_enter('//*[@id="FechaDesdeHecho"]')
+                xpath_click('//*[@id="HoraDesdeHecho"]')
+                _=COOP[12].split(':')
+                Hora=_[0]
+                Min=_[1]
+                xpath_send('//*[@id="DivOrigen"]/div[2]/div[1]/div/div/div/div/div/div[3]/div/div/table/tbody/tr[2]/td[1]/input',Hora)
+                xpath_send('//*[@id="DivOrigen"]/div[2]/div[1]/div/div/div/div/div/div[3]/div/div/table/tbody/tr[2]/td[3]/input',Min)
+                _=COOP[13].split(':')
+                Hora=_[0]
+                Min=_[1]
+                xpath_click('//*[@id="HoraHastaHecho"]')                       
+                xpath_send('//*[@id="DivOrigen"]/div[2]/div[1]/div/div/div/div/div/div[5]/div/div/table/tbody/tr[2]/td[1]/input',Hora)
+                xpath_send('//*[@id="DivOrigen"]/div[2]/div[1]/div/div/div/div/div/div[5]/div/div/table/tbody/tr[2]/td[3]/input',Min)
+                xpath_click('//*[@id="frmModalidad"]/div/div[1]/div[2]/div/div/span/span[1]/span/span[2]')
+                xpath_send('/html/body/span/span/span[1]/input','art.14 ')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_click('//*[@id="frmModalidad"]/div/div[1]/div[6]')
+                xpath_click('//*[@id="DivGenerales"]/div/div/div[2]/div/div[1]/div/span/span[1]/span/span[2]/b')
+                xpath_send('/html/body/span/span/span[1]/input','entidad publica (dependencia policial)')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                xpath_click('//*[@id="DivGenerales"]/div/div/div[1]/div/div[2]/div/span/button')
+
+                #----------------
+                #RELLENADO DE "COOPERACION"
+                while True:                                        
+                        try:
+                                xpath_click('//*[@id="frmActividad"]/div/div/div[2]/div/form/div[1]/div/div[1]/span')
+                                xpath_send('/html/body/span/span/span[1]/input','Cooperacion')
+                                xpath_enter('/html/body/span/span/span[1]/input')
+                                xpath_click('//*[@id="agregarActividadDatosGenerales"]')
+                                xpath_click('//*[@id="aceptarActividad"]')
+                                break
+                        except:
+                                continue
+
+                #----------------
+                #RELLENADO DE JUSTICIA
+                #Parte Constante
+                while True:
+                        try:    
+                                time.sleep(1)
+                                xpath_click('//*[@id="Divotros"]/div/div[1]/div[1]/div/div/div[2]/div/div/div/div/span[2]')
+                                xpath_click('//*[@id="BotonJusticia"]')
+                                xpath_send('//input[@id="nroLetra"]',COOP[5])
+                                xpath_send('//input[@id="nomCargo"]',COOP[6])
+                                xpath_click('//*[@id="select2-cmb_Justicia-container"]')
+                                break
+                        except:
+                                time.sleep(1)
+                                continue
+                #Parte Variable
+                while True:
+                        try:    
+                                time.sleep(1)
+                                if COOP[18]=='FISCALIA':
+                                        xpath_send('/html/body/span/span/span[1]/input','Caba')
+                                        xpath_enter('/html/body/span/span/span[1]/input')
+                                        xpath_click('//*[@id="frmJusticia2"]/div/div/div[2]/form/div[2]/div/div/span/span[1]/span/span[2]')
+                                        time.sleep(1)
+                                        xpath_send('/html/body/span/span/span[1]/input','Ministerio Público Fiscal')
+                                        time.sleep(1)
+                                        xpath_enter('/html/body/span/span/span[1]/input')
+                                        time.sleep(1)  
+                                        xpath_click('//*[@id="select2-cmb_Organismo-container"]')
+                                        xpath_send('/html/body/span/span/span[1]/input','Fiscalía Penal Contravencional y de Faltas')
+                                        xpath_enter('/html/body/span/span/span[1]/input')
+                                        xpath_click('//*[@id="select2-cargo-container"]')
+                                        xpath_send('/html/body/span/span/span[1]/input','Fiscal')                               
+                                        xpath_enter('/html/body/span/span/span[1]/input')
+                                        xpath_click('//*[@id="frmJusticia2"]/div/div/div[3]/button[2]')
+                                elif COOP[18]=='JUZGADO':
+                                        xpath_send('/html/body/span/span/span[1]/input','Nacion (Fueros Federales)')
+                                        driver.find_element_by_xpath('/html/body/span/span/span[1]/input').send_keys(Keys.ENTER)
+                                        xpath_click('//*[@id="select2-cmb_Fuero-container"]')
+                                        time.sleep(1)
+                                        xpath_send('/html/body/span/span/span[1]/input','Juzgado Nacional en lo Criminal y Correccional Federal')
+                                        time.sleep(1)
+                                        driver.find_element_by_xpath('/html/body/span/span/span[1]/input').send_keys(Keys.ENTER)
+                                        time.sleep(1)  
+                                        xpath_click('//*[@id="select2-cmb_Organismo-container"]')
+                                        xpath_send('/html/body/span/span/span[1]/input','Juzgado')
+                                        driver.find_element_by_xpath('/html/body/span/span/span[1]/input').send_keys(Keys.ENTER)
+                                        xpath_click('//*[@id="select2-cargo-container"]')
+                                        xpath_send('/html/body/span/span/span[1]/input','Juez')
+                                        driver.find_element_by_xpath('/html/body/span/span/span[1]/input').send_keys(Keys.ENTER)
+                                        xpath_click('//*[@id="frmJusticia2"]/div/div/div[3]/button[2]')
+                                break
+                        except:
+                                time.sleep(1)
+                                continue
+
+                #----------------
+                #RELLENADO DE SUMARIO
+                xpath_click('//*[@id="select2-RelExtTipo-container"]')
+                xpath_send('/html/body/span/span/span[1]/input','SUMARIO')
+                xpath_enter('/html/body/span/span/span[1]/input')
+                #-------------------------------------------------------------------------------------------------------------------------------
+                #GUARDAR TODO
+                xpath_click('//*[@id="GuardarActuacion"]')
+                xpath_click('/html/body/div[14]/div/div/div[2]/button')
+
+                #-------------------------------------------------------------------------------------------------------------------------------
+                #reseña GAP
+                while True:
+                        xpath_click('//*[@id="editarResenia"]')
+                        xpath_send('//*[@id="breveReseniaSidebar"]','SE REALIZÓ LA COOPERACIÓN SOLICITADA, EFECTUANDO PESAJE Y TEST DE ORIENTACIÓN, DEVOLVIENDO TODAS LAS ACTUACIONES A LA DEPENDENCIA SOLICITANTE.')
+                        time.sleep(3)
+                        while True:
+                                try:
+                                        element = driver.find_element_by_xpath('//*[@id="GrabarResenia"]')
+                                        driver.execute_script("arguments[0].click();", element)
+                                        break
+                                except:
+                                        continue   
+                        
+                        time.sleep(1)
+                        xpath_click('/html/body/div[14]/div/div/div[2]/button')
+                        _=driver.find_element_by_xpath('//*[@id="ulResenia"]/li/a').text                                
+                        if _=='SE REALIZÓ LA COOPERACIÓN SOLICITADA, EFECTUANDO PESAJE Y TEST DE ORIENTACIÓN, DEVOLVIENDO TODAS LAS ACTUACIONES A LA DEPENDENCIA SOLICITANTE.':
+                                break        
+
+                #-------------------------------------------------------------------------------------------------------------------------------
+                #AGREGAR PERSONAS
+                #OFICIAL
+                Nums= {'29076875','35096157','35417114','31453','35246371','4032','34270825'}
+                DNI_chicas=['35096157','35246371','34270825']
+                if len(COOP[2])>5:
+                        input('Introduzca el Oficial interventor manualmente')
+                else:
+                        Se_cargo_completamente_el_oficial=False
+                        while Se_cargo_completamente_el_oficial==False:
+                                xpath_click('//*[@id="agregarPersona"]')
+                                xpath_send('//*[@id="identificadorPolicial"]',COOP[2])
+                                time.sleep(1)
+                                xpath_enter('//*[@id="identificadorPolicial"]')
+                                xpath_click('//*[@id="select2-selectCalidad-container"]')
+                                xpath_send('/html/body/span[2]/span/span[1]/input','OFICIAL INTERVENTOR')    
+                                xpath_enter('/html/body/span[2]/span/span[1]/input')            
+                                xpath_click('//*[@id="AgregarPersonaCaratula"]')
+                                time.sleep(2)
+                                xpath_click('/html/body/div[7]/div/div/div[2]/button')
+                                xpath_click('//*[@id="personalCivil"]/div/div[3]/button')    
+                                #ACA SE CIERRA, Y SE CHECKEA QUE ESTE TODO BIEN 
+                                for i in range(5):       
+                                        try:
+                                                Personal_Cargado=(driver.find_element_by_xpath('//*[@id="ulPersonas"]/li[{}]/a'.format(str(i))).text).split()
+                                                for Palabras in Personal_Cargado:
+                                                        if Palabras in COOP[3]:
+                                                                Se_cargo_completamente_el_oficial=True
+                                        except:
+                                                continue
+                #PERITO
+                time.sleep(5)
+                xpath_click('//*[@id="agregarPersona"]')
+                if COOP[19] not in Nums:
+                        input('Mil disculpas, pero el programa detecto que el perito no se encuentra en mi base de datos (AH PARA, QUIEN ERA EL PROGRAMA) Por favor, introduzca el perito a mano')
+                else:
+                        Se_cargo_completamente_el_perito==False
+                        while Se_cargo_completamente_el_perito==False:
+                                #ACA VAMOS A HACER DETERMINADA COSA SEGUN QUIEN ES EL PERITO
+                                # SI USA LP                                        
+                                if COOP[19]=='4032' or COOP[19]=='6895'or COOP[19]=='31453': 
+                                        #MANDO LP Y APRETO ENTER
+                                        xpath_send('//*[@id="identificadorPolicial"]',COOP[19])
+                                        xpath_enter('//*[@id="identificadorPolicial"]') 
+                                        #ACA LES PONEMOS "OFICIAL PERITO INTERVENTOR" Y APRETAMOS ENTER
+                                        xpath_click('//*[@id="select2-selectCalidad-container"]') 
+                                        if COOP[19]=='4032' or COOP[19]=='6895':
+                                                xpath_send('/html/body/span[2]/span/span[1]/input','OFICIAL PERITO INTERVENTOR')   
+                                        elif COOP[19]=='31453': #SI ES CARLA
+                                                xpath_send('/html/body/span[2]/span/span[1]/input','AUXILIAR INTERVENTOR')  
+                                        xpath_enter('/html/body/span[2]/span/span[1]/input') 
+                                        xpath_click('//*[@id="AgregarPersonaCaratula"]')
+                                        try:
+                                                xpath_click('/html/body/div[7]/div/div/div[2]/button')
+                                        except:
+                                                pass
+                                        xpath_click('//*[@id="personalCivil"]/div/div[3]/button') 
+
+                                #SI USA DNI     
+                                else:
+                                        #SI ES MUJER
+                                        if COOP[19] in DNI_chicas:
+                                                xpath_click('//*[@id="Persona_Sexo"]')
+                                                driver.find_element_by_xpath('//*[@id="Persona_Sexo"]').send_keys(Keys.DOWN)
+                                                driver.find_element_by_xpath('//*[@id="Persona_Sexo"]').send_keys(Keys.ENTER)
+                                        xpath_send('//*[@id="Persona_dni"]',COOP[19])
+                                        xpath_enter('//*[@id="Persona_dni"]')
+                                        xpath_click('//*[@id="select2-selectCalidad-container"]')  
+                                        xpath_send('/html/body/span[2]/span/span[1]/input','PERITO CIVIL')
+                                        xpath_enter('/html/body/span[2]/span/span[1]/input')
+                                        xpath_click('//*[@id="AgregarPersonaCaratula"]')
+                                        xpath_click('//*[@id="btnGuardarPersona"]')
+                                        try:
+                                                xpath_click('/html/body/div[7]/div/div/div[2]/button[2]')
+                                        except:
+                                                pass
+                                        xpath_click('//*[@id="SalirPersona"]')
+                                for i in range(5):       
+                                        try:
+                                                Personal_Cargado=(driver.find_element_by_xpath('//*[@id="ulPersonas"]/li[{}]/a'.format(str(i))).text).split()
+                                                for Palabras in Personal_Cargado:
+                                                        if Palabras in COOP[10]:
+                                                                Se_cargo_completamente_el_perito=True
+                                                                break
+                                        except:
+                                                pass
+
+                #-------------------------------------------------------------------------------------------------------------------------------
+                #drogas
+                if COOP[14]!='NO HAY':
+                        agregar_droga('MDMA')
+                        time.sleep(2)
+                if COOP[15]!='NO HAY':
+                        agregar_droga('MARI')
+                        time.sleep(2)
+                if COOP[16]!='NO HAY':
+                        agregar_droga('CC')
+                        time.sleep(2)
+                if COOP[17]!='NO HAY':
+                        agregar_droga('BC')
+                        time.sleep(2)
+                if COOP[20] == 'NS':
+                        agregar_droga('Otros')
+                #-------------------------------------------------------------------------------------------------------------------------------
+                #VUELTA A LA CARATULA Y ELEVACION
+                xpath_click('//*[@id="editarCaratula"]')
+                xpath_click('//*[@id="DivOrigen"]/div[2]/div[6]/div/div/div/div[1]/div/div/div/div/span[2]')
+                while True:
+                        try:
+                                NUM_GAP=driver.find_element_by_xpath('//*[@id="spncodigoCaratula"]').text
+                                break
+                        except:
+                                continue                          
+                xpath_click('/html/body/div[14]/div/div/div[2]/button')
+                xpath_click('//*[@id="Fecha_Cierre_Elevacion"]')
+                xpath_enter('//*[@id="Fecha_Cierre_Elevacion"]')
+                #RELLENADO DE DOMICILIO 
+                xpath_click('//*[@id="GuardarActuacion"]')
+                xpath_click('/html/body/div[14]/div/div/div[2]/button')
+                while True:
+                        try:
+                                time.sleep(2)
+                                xpath_click('//*[@id="BtnDomicilio"]')
+                                time.sleep(2)
+                                xpath_send('//*[@id="autocomplete"]','ramon castillo 1720')
+                                time.sleep(2)
+                                driver.find_element_by_xpath('//*[@id="autocomplete"]').send_keys(Keys.ENTER)
+                                time.sleep(2)
+                                driver.find_element_by_xpath('//*[@id="autocomplete"]').send_keys(Keys.ENTER)
+                                time.sleep(2)
+                                xpath_click('//*[@id="addDomicilio"]')
+                                break
+                        except:
+                                time.sleep(1)
+                                continue
+                print('Apretar enter para elevar')
+                input()
+                xpath_click('//*[@id="GuardarActuacion"]')
+                print('El numero de GAP es '+NUM_GAP)
+                #-----------------------------------------------------------------------------------------------------------------------
+                #Incorporo los numeros a la lista
+                csvFile.close()
+                GAPS_HECHOS.append(NUM_GAP)
+                COOP_HECHAS.append(COOP[0])
+#-------------------------------------------------------------
+#PASO LOS NUMEROS DE GAP AL EXCEL
+wb = Workbook()
+ws = wb.active
+ws.title = "GAP"
+sheet=wb['GAP']
+sheet['B1']='Cooperacion'
+sheet['C1']='GAP'
+_=len(GAPS_HECHOS)+2 
+for rowNum in range(2,_):
+        sheet.cell(row=rowNum, column=2).value = COOP_HECHAS[rowNum-2]
+        sheet.cell(row=rowNum, column=3).value = GAPS_HECHOS[rowNum-2]
+wb.save('NUMEROS_DE_GAP.xlsx')
+
+#---------------------------
+print('Las siguientes cooperaciones fueron cargadas con exito:')
+barra()
+for Cooperaciones in COOP_HECHAS:
+        print(Cooperaciones)
+barra()
+print('Apretar enter para cerrar')
+input()
