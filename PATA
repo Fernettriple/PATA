@@ -8,12 +8,11 @@ import shelve
 import math
 import csv
 import xlsxwriter
-import openpyxl 
+import openpyxl
 import shutil
 import pandas as pd
 from openpyxl import Workbook
 
-    
 #Gloriosas funciones
 def purge(x):
     '''Es una funcion pedorra que te agarra una palabra y te saca los espacios de ambos lados, y las ","
@@ -123,7 +122,7 @@ def replace_string(Doc,Frase_a_cambiar,Frase_cambiada):
 def reemplazar_palabra(Source,*palabra_inicial):
     for palabra in palabra_inicial:
         if palabra in Source:
-            Source=Source.replace(palabra,'\n'+palabra)
+            Source=Source.replace(palabra,'&'+palabra)
     return Source
 
 #-------------------------------------------------------------------------------------------------------------------------------
@@ -232,16 +231,23 @@ ASI QUE BUENO... USEN MAYUSCULAS
 
 Desea correr el programa en "Modo Seguro"? (Modo seguro te muestra todos los datos leidos ANTES de pasarlos a los excels
 ''')
-if input('Si/No').upper()=='SI':
+
+if input('Si/No   ').upper()=='SI':
     Modo_Seguro=True
 else:
     Modo_Seguro=False
 CANTIDAD_DE_COOPERACIONES_HECHAS=1
 CONTADOR_DE_FILAS_PARA_ODI92=1
-wb = Workbook()
-ws = wb.active
-ws.title = "LIBRO"
-sheet=wb['LIBRO']
+#TRATO DE ABRIR EL EXCEL
+try:
+    wb = openpyxl.load_workbook('info.xlsx')                
+    ws = wb.active
+    sheet=wb['LIBRO']
+except:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "LIBRO"
+    sheet=wb['LIBRO']
 for ColumnNum in range(len(Titulo_LIBRO)):
     sheet.cell(row=1, column=ColumnNum+1).value =Titulo_LIBRO[ColumnNum]
 wb.save('info.xlsx')
@@ -261,6 +267,11 @@ wb.save('info.xlsx')
 
 #-------------------------------------------------------------------------------------------------------------------------------
 #ACA SE RENOMBRAN LOS DOCX PARA ORDENARSE (IKR)
+#Limpio de Desechos 
+for filename in os.listdir():
+    if filename.endswith(' -TEMPORAL.docx'):
+        os.unlink(filename)
+#Ahora si, arranco
 for filename in os.listdir('.'):
     if (filename!='HDR.docx'
         and filename.startswith("HOJA")==False
@@ -352,21 +363,21 @@ for filename in os.listdir('.'):
             COOP[0]=purge(input('Numero de cooperacion:'))
             COOP[1]=purge(input('Numero de sumario:'))
         barra()
-        print('ACTUALMENTE LEYENDO LA COOPERACION : '+COOP[0])
+        print('ACTUALMENTE LEYENDO LA COOPERACION : '+COOP[0]+'-19')
         barra()
 
         #-------------------------------------------------------------------------------------------------------------------------------
         #LP
         try:
-            spam=getData(doc,'SUSCRIBE','NUMERARIO')
+            Texto_Suscribiente=getData(doc,'SUSCRIBE','DEL NUMERARIO')
             Patron_numero_LP= re.compile(r'(\d)+')
             bugg=re.compile(r'(°|º|/s)?1(°|º|/s)?')
-            if bugg.search(spam):
-                bug=bugg.search(spam)
-                spam=spam.split()
-                spam.remove(bug.group())
-                spam=' '.join(spam)
-            COOP[2]=Patron_numero_LP.search(spam).group()
+            if bugg.search(Texto_Suscribiente):
+                bug=bugg.search(Texto_Suscribiente)
+                Texto_Suscribiente=Texto_Suscribiente.split()
+                Texto_Suscribiente.remove(bug.group())
+                Texto_Suscribiente=' '.join(Texto_Suscribiente)
+            COOP[2]=Patron_numero_LP.search(Texto_Suscribiente).group()
                     
         except:
             print('Error al leer el LP del suscribiente. Por favor, introduzcalo manualmente. Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n.{}'.format(
@@ -376,21 +387,21 @@ for filename in os.listdir('.'):
         #-------------------------------------------------------------------------------------------------------------------------------            
         #Suscribiente    
         try:    
-            spam=getData(doc,'SUSCRIBE','DEL NUMERARIO').split()
+            Texto_Suscribiente=Texto_Suscribiente.split()
             eggs=re.compile(r'L(.)?P(.)?[^RIMERO]?')
-            for i in range(len(spam)):
+            for i in range(len(Texto_Suscribiente)):
                 try:
-                    if eggs.search(spam[i]):
-                        _=eggs.search(spam[i])
+                    if eggs.search(Texto_Suscribiente[i]):
+                        _=eggs.search(Texto_Suscribiente[i])
                         _=_.group()
-                        spam.remove(_.strip(' '))
+                        Texto_Suscribiente.remove(_.strip(' '))
                 except:
                     continue
-            if COOP[2] in spam:
-                spam.remove(Numero_de_LP)
-            COOP[3]=' '.join(spam)
+            if COOP[2] in Texto_Suscribiente:
+                Texto_Suscribiente.remove(COOP[2])
+            COOP[3]=' '.join(Texto_Suscribiente)
         except:
-            COOP[3]=input('Error a leer el nombre de suscribiente. Por favor introduzcalo manualmente. Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n{}'.format(getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES'))).upper()
+            COOP[3]=input('Error a leer el nombre de suscribiente. Por favor introduzcalo manualmente. Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n{}    '.format(getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES'))).upper()
 
         #-------------------------------------------------------------------------------------------------------------------------------
         #Comisaria/Division/etc
@@ -427,7 +438,7 @@ for filename in os.listdir('.'):
             fiscalia=re.compile(r'((.)?F(.)?I(.)?S(.)?C(.)?A(.)?L(.)?.(.)?A(.)?)')
             juzgado=re.compile(r'((.)?J(.)?U(.)?Z(.)?G(.)?A(.)?D(.)?O(.)?)')
             Numero_de_Magisterio=re.compile(r'((\d)?(\d)?\d)')
-            dr=re.compile(r'(DR(.*)?(\w)+)')
+            dr=re.compile(r'(DR(A)?(.*)?(\w)+)')
             if fiscalia.search(Magisterio_Interventor):
                 Tipo_de_Magisterio='FISCALIA'       #Tipo de Magisterio. Si es Fiscalia o Juzgado (me sirve para distinguir)          
                 if Numero_de_Magisterio.search(Magisterio_Interventor):
@@ -447,8 +458,9 @@ for filename in os.listdir('.'):
                 if dr.search(Secretaria_Interventora):
                     if ',' in dr.search(Secretaria_Interventora).group():
                         _=dr.search(Secretaria_Interventora).group().split(',')
-                        _=_[0]
-                    COOP[8]=_
+                        COOP[8]=_[0]
+                    else:
+                        COOP[8]=dr.search(Secretaria_Interventora).group()
                 else:
                     COOP[8]=input('Error:No se ha encontrado el nombre del secretario. Introducilo Manualmente. Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n'+'SECRE'+Secretaria_Interventora+' EN LA QUE RESULTA\n')
             elif juzgado.search(Magisterio_Interventor):
@@ -474,8 +486,9 @@ for filename in os.listdir('.'):
                 if dr.search(Secretaria_Interventora):
                     if ',' in dr.search(Secretaria_Interventora).group():
                         _=dr.search(Secretaria_Interventora).group().split(',')
-                        _=_[0]
-                    COOP[8]=_
+                        COOP[8]=_[0]
+                    else:
+                        COOP[8]=dr.search(Secretaria_Interventora).group()
                 else:
                     print('Error:No se ha encontrado el nombre del secretario. Introducilo Manualmente')
                     COOP[8]=input('Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n'+'SECRE'+Secretaria_Interventora+' EN LA QUE RESULTA\n')
@@ -548,49 +561,49 @@ for filename in os.listdir('.'):
         #-------------------------------------------------------------------------------------------------------------------------------            
         #Peso de las Drogas. 
         pesos=re.compile(r'\d*,?\.?\d{3}')
-        Pericia=reemplazar_palabra(getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APERTURA','FINALIZADO EL PROCEDIMIENTO'),'GRAMOS','SUSTANCIA, MATERIAL')
-        if 'GRS' in spam:
-            bacon=spam.replace('GRS','GRAMOS\n')
-        if 'SUBSTANCIA' in bacon:
-            bacon=bacon.replace('SUBSTANCIA','\nSUSTANCIA')
-        if 'CIGARRILLO' in bacon:               
-            bacon=bacon.replace('CIGARRILLO','\nSUSTANCIA')  
-        if 'SEMILLA' in bacon:
-            bacon=bacon.replace('SEMILLA','\nSUSTANCIA VEGETAL') 
-
-        bacon=bacon.split('\n') #CON ESTO LOGRO SEPARAR EN FRASES QUE EMPIECEN CON 'SUSTANCIA/MATERIAL' Y TERMINEN CON 'GRAMOS'. SUPONGO QUE ESTO CONTENDRA EL PESO DE LA DROGA
+        Dictado_de_la_pericia=reemplazar_palabra(getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APERTURA','FINALIZADO EL PROCEDIMIENTO'),'GRAMOS','SUSTANCIA', 'MATERIAL')
+        if 'GRS' in Dictado_de_la_pericia:
+            Dictado_de_la_pericia=Dictado_de_la_pericia.replace('GRS','GRAMOS&')
+        if 'SUBSTANCIA' in Dictado_de_la_pericia:
+            Dictado_de_la_pericia=Dictado_de_la_pericia.replace('SUBSTANCIA','&SUSTANCIA')
+        if 'CIGARRILLO' in Dictado_de_la_pericia:               
+            Dictado_de_la_pericia=Dictado_de_la_pericia.replace('CIGARRILLO','&SUSTANCIA')  
+        if 'SEMILLA' in Dictado_de_la_pericia:
+            Dictado_de_la_pericia=Dictado_de_la_pericia.replace('SEMILLA','&SUSTANCIA VEGETAL') 
+        Dictado_de_la_pericia=Dictado_de_la_pericia.split('&') #CON ESTO LOGRO SEPARAR EN FRASES QUE EMPIECEN CON 'SUSTANCIA/MATERIAL' Y TERMINEN CON 'GRAMOS'. SUPONGO QUE ESTO CONTENDRA EL PESO DE LA DROGA
         drg= {}
         if 'MDMA' in doc:
-            COOP[14]=input('Hay MDMA, tenes que introducir manualmente el peso\n')
+            COOP[14]=input('Hay MDMA, tenes que introducir manualmente el peso&')
             drg['MDMA']=COOP[14]
         else:
             COOP[14]=('NO HAY')
         Mari=0
         Coca=0
         Paco=0
-        for i in range(0,len(bacon)-1):
-            if 'SUSTANCIA' in bacon[i] or 'MATERIAL' in bacon[i]:
-                if 'PESA' in bacon[i] or 'PESO' in bacon[i]:
-                    if pesos.findall(bacon[i]):
-                        Peso_de_sustancia=float(str(pesos.findall(bacon[i])[0]).replace(',','.'))
+        for i in range(0,len(Dictado_de_la_pericia)-1):
+            if 'SUSTANCIA' in Dictado_de_la_pericia[i] or 'MATERIAL' in Dictado_de_la_pericia[i]:
+                if 'PESA' in Dictado_de_la_pericia[i] or 'PESO' in Dictado_de_la_pericia[i]:
+                    if pesos.findall(Dictado_de_la_pericia[i]):
+                        Peso_de_sustancia=float(str(pesos.findall(Dictado_de_la_pericia[i])[0]).replace(',','.'))
                         mariajuana=['VEGETAL','VERDE AMARRONAD','VERDE','VERDEAMARRONAD','VERDE MARRON']
                         if Peso_de_sustancia>1000:
-                            meme=input('Este numero, es un peso de droga o algun otro numero?\n{}. Si esta bien, apreta enter. Si no cualquier cosa y el programa descartara el numero y seguira leyendo\n'.format(str(_)))
+                            meme=input('Este numero, es un peso de droga o algun otro numero?\n{}. Si esta bien, apreta enter. Si no cualquier cosa y el programa descartara el numero y seguira leyendo\n'.format(str(Peso_de_sustancia)))
                             if meme != '':
                                 Peso_de_sustancia=0
+                                continue
                         for Descripciones_de_marihuana in mariajuana:
-                            if Descripciones_de_marihuana in bacon[i]:
+                            if Descripciones_de_marihuana in Dictado_de_la_pericia[i]:
                                 Mari += Peso_de_sustancia
                                 Mari=round(Mari,3)
-                                bacon[i]='wea'
-                        if 'BLANCA' in bacon[i] or 'PULVERULENTA' in bacon[i]:
+                                Dictado_de_la_pericia[i]='wea'
+                        if 'BLANC' in Dictado_de_la_pericia[i] or 'PULVERULENTA' in Dictado_de_la_pericia[i]:
                             Coca+=Peso_de_sustancia
                             Coca=round(Coca,3)
-                            bacon[i]='wea'
-                        if 'AMARI' in bacon[i]:
+                            Dictado_de_la_pericia[i]='wea'
+                        if 'AMARI' in Dictado_de_la_pericia[i]:
                             Paco+=Peso_de_sustancia
                             Paco=round(Paco,3)
-                            bacon[i]='wea'
+                            Dictado_de_la_pericia[i]='wea'
         #ESTA PARTE SIRVE PARA DETECTAR CUANDO HAY LIMPIO O ESO
         foo=getData(doc,'FINALIZADO EL PROCEDIMIENTO','EL MATERIAL REMANENTE DEVUELTO')
         if 'PLANT' in foo:
@@ -601,9 +614,9 @@ for filename in os.listdir('.'):
         Se_encontraron_drogas_no_soportadas=False            
         for weas in Drogas_No_Soportadas:
             if weas in foo: 
-                print(('Se ha detectado la presencia de algun tipo de sustancia {} la cual NO es soportada por este programa "de manera automatica"\n'+
+                print('Se ha detectado la presencia de algun tipo de sustancia {} la cual NO es soportada por este programa "de manera automatica"\n'+
                 'Por favor, introduzca el nombre de la sustancia (asi aparecera en la hoja de ruta y eso) y el peso\n'+
-                'Aca tenes el resultado del trunarc para guiarte\n'+foo).format(weas))                   
+                'Aca tenes el resultado del trunarc para guiarte\n '+foo.format(weas))                   
                 Se_encontraron_drogas_no_soportadas=True
                 Drogas_No_Soportada=input('Nombre de la droga?\n')
                 drg[Drogas_No_Soportada]=input('Peso de la droga?\n')
@@ -615,36 +628,35 @@ for filename in os.listdir('.'):
             if Se_encontraron_drogas_no_soportadas== True:
                 Paco=0
         if Mari != 0:
-            Mari=str(Mari)
-            Mari=Mari.replace('.',',')
+            Mari=str(Mari).replace('.',',')
             COOP[15]=(Mari)
             drg['MARIHUANA']=Mari
         else:
             COOP[15]=('NO HAY')
         if Coca != 0:                               
-            Coca=str(Coca)
-            Coca=Coca.replace('.',',')
+            Coca=str(Coca).replace('.',',')
             COOP[16]=(Coca)
             drg['CLORHIDRATO DE COCAINA']=Coca 
         else:
             COOP[16]=('NO HAY')
         if Paco !=0:
-            Paco=str(Paco)
-            Paco=Paco.replace('.',',')
+            Paco=str(Paco).replace('.',',')
             COOP[17]=(Paco)
             drg['BASE DE COCAINA']=Paco    
         else:
             COOP[17]=('NO HAY')
-                                    
+                                   
         #-------------------------------------------------------------------------------------------------------------------------------
         #CANTIDAD DE SOBRES
         try:
-            spam=getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APERTURA','FINALIZADO EL PROCEDIMIENTO')
-            Sobr=re.compile(r'(SOBRE(S)?)')
-            if Sobr.search(spam):
-                _=Sobr.search(spam).group()
-                bacon=spam.replace(_,_+'WEA')
+            Dictado_de_la_pericia=getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APERTURA','FINALIZADO EL PROCEDIMIENTO')
+            Patron_Sobre=re.compile(r'(SOBRE(S)?)')
+            if Patron_Sobre.search(Dictado_de_la_pericia):
+                _=Patron_Sobre.search(Dictado_de_la_pericia).group()
+                bacon=Dictado_de_la_pericia.replace(_,_+'WEA')
                 Sobre=getData(bacon,'DE','WEA')
+            else:
+                raise Error
         except:
             Sobre=input('Hubo un error. Cuantos sobres son en esta pericia? Introduzcalo a continuacion, por ejemplo "DOS SOBRES"    ')
 
@@ -652,9 +664,7 @@ for filename in os.listdir('.'):
         #CHECKEO QUE ESTE TODO BIEN. RE HACER TODO. VER COMO HAGO PARA QUE NO       
         for i in range(len(COOP)):
             if len(COOP[i])>70:
-                print('El programa detecto que el siguiente dato es muy largo, se puede deber a un problema de lectura o por ahi esta bien. Reviselo por las dudas:')
-                print(COOP[i])
-                print('Si esta todo bien, presione enter. Si desea cambiarlo, presione cualquier otro boton')
+                print('El programa detecto que el siguiente dato es muy largo, se puede deber a un problema de lectura o por ahi esta bien. Reviselo por las dudas:\n{}\nSi esta todo bien, presione enter. Si desea cambiarlo, presione cualquier otro boton'.format(COOP[i]))
                 if input()!='':
                     COOP[i]=input('Introduzca por favor el valor correcto (o una version mas resumida, sin omitir los datos IMPORTANTES)')
 
@@ -672,8 +682,7 @@ for filename in os.listdir('.'):
                 mostrarlista()
                 spam=input('Desea Modificar algo? Si es asi, introduzca el indice (Numero a la izquierda). En el caso de que este todo bien, apretar enter\n')
                 if spam != '':
-                    spam=int(spam)
-                    COOP[spam]=input('Que valor deberia tener esto?\n')
+                    COOP[int(spam)]=input('Que valor deberia tener esto?\n')
                 else:
                     break
         #-------------------------------------------------------------------------------------------------------------------------------                        
@@ -696,7 +705,8 @@ for filename in os.listdir('.'):
                 i+=1                                    
             else:
                 ODI92_EXTRA_DROGA=['','','','','','','',k,'',v,'GRAMOS']
-
+            if i==0:
+                ODI92.extend(['Error en la carga de la droga','Error en la carga de la droga','Error en la carga de la droga','Error en la carga de la droga'])
         #-------------------------------------------------------------------------------------------------------------------------------    
         #Pasaje a excels
         wb = openpyxl.load_workbook('info.xlsx')                
@@ -749,7 +759,7 @@ for filename in os.listdir('.'):
         if Tipo_de_Magisterio=='FISCALIA':
             replace_string(hdr,'*',('FISCALIA PENAL CONTRAVENCIONAL Y DE FALTAS N°'+COOP[5]+' A CARGO DE '+COOP[6]))
             replace_string(hdr,'ç',(COOP[7]+' A CARGO DE '+COOP[8]))
-        elif Tipo_de_Magisterio=='J':
+        elif Tipo_de_Magisterio=='JUZGADO':
             replace_string(hdr,'*',('JUZGADO NACIONAL EN LO CRIMINAL Y CORRECCIONAL N°'+COOP[5]+' A CARGO DE '+COOP[6]))
             replace_string(hdr,'ç',(COOP[7]+' A CARGO DE '+COOP[8]))
         else:
@@ -786,7 +796,6 @@ for filename in os.listdir('.'):
         CANTIDAD_DE_COOPERACIONES_HECHAS+=1
         CONTADOR_DE_FILAS_PARA_ODI92+=1
         Cantidad_de_cooperaciones_leidas.append(COOP[0])
-        continue
 
 #-------------------------------------------------------------------------------------------------------------------------------
 #BORRO LOS DOCX CREADOS AL PEDO
