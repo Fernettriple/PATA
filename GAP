@@ -35,20 +35,24 @@ def xpath_click(path):
                                         path=input('Cual es el xpath?  ')
                                         continue
                         continue
-def xpath_send(path,Keys):
+def xpath_send(path,Mensaje):
         timer=0
         while True:
                 try: 
                         driver.find_element_by_xpath(path).clear()
                         time.sleep(1)         
-                        driver.find_element_by_xpath(path).send_keys(Keys)
+                        driver.find_element_by_xpath(path).send_keys(Mensaje)
                         time.sleep(1)
                         break                
                 except:
                         time.sleep(2)
                         timer+=1
                         if timer > 20:
-                                _=input('El GAP esta trabadisimo (o algo terrible paso) al tratar de mandar {}. Cuando se destrabe, presiona ENTER o escribi "SKIP" para saltear el paso   '.format(Keys)).upper()
+                                if Mensaje=='/html/body/div[7]/div/div/div[2]/button':
+                                        Nombre_de_Mensaje='El boton de "OK"'
+                                else:
+                                        Nombre_de_Mensaje=Mensaje
+                                _=input('El GAP esta trabadisimo (o algo terrible paso) al tratar de mandar {}. Cuando se destrabe, presiona ENTER o escribi "SKIP" para saltear el paso   '.format(Nombre_de_Mensaje)).upper()
                                 if _=='SKIP':
                                         break
                                 elif _=='PATH':
@@ -125,6 +129,20 @@ def agregar_droga(droga):
         xpath_click('//*[@id="BotonGrabarObjeto"]')
         xpath_click('/html/body/div[8]/div/div/div[2]/button[2]')
         xpath_click('/html/body/div[8]/div/div/div[3]/button[1]')
+#-------------------------------------------------------------------------------------------------------------------------------
+#Creo el excel
+try:
+        wb = openpyxl.load_workbook('info.xlsx')                
+        ws = wb.active
+        sheet=wb['GAP']
+        sheet['B1']='Cooperacion'
+        sheet['C1']='GAP'
+except:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "GAP"
+        sheet=wb['GAP']
+wb.save('NUMEROS_DE_GAP.xlsx')
 #-------------------------------------------------------------------------------------------------------------------------------
 #abro el gap
 print('''
@@ -320,7 +338,8 @@ for filename in os.listdir('.'):
                                 xpath_enter('//*[@id="identificadorPolicial"]')
                                 xpath_click('//*[@id="select2-selectCalidad-container"]')
                                 xpath_send('/html/body/span[2]/span/span[1]/input','OFICIAL INTERVENTOR')    
-                                xpath_enter('/html/body/span[2]/span/span[1]/input')            
+                                xpath_enter('/html/body/span[2]/span/span[1]/input') 
+                                time.sleep(2)           
                                 xpath_click('//*[@id="AgregarPersonaCaratula"]')
                                 time.sleep(2)
                                 xpath_click('/html/body/div[7]/div/div/div[2]/button')
@@ -340,7 +359,7 @@ for filename in os.listdir('.'):
                 if COOP[19] not in Nums:
                         input('Mil disculpas, pero el programa detecto que el perito no se encuentra en mi base de datos (AH PARA, QUIEN ERA EL PROGRAMA) Por favor, introduzca el perito a mano')
                 else:
-                        Se_cargo_completamente_el_perito==False
+                        Se_cargo_completamente_el_perito=False
                         while Se_cargo_completamente_el_perito==False:
                                 #ACA VAMOS A HACER DETERMINADA COSA SEGUN QUIEN ES EL PERITO
                                 # SI USA LP                                        
@@ -450,17 +469,13 @@ for filename in os.listdir('.'):
                 COOP_HECHAS.append(COOP[0])
 #-------------------------------------------------------------
 #PASO LOS NUMEROS DE GAP AL EXCEL
-wb = Workbook()
-ws = wb.active
-ws.title = "GAP"
-sheet=wb['GAP']
-sheet['B1']='Cooperacion'
-sheet['C1']='GAP'
-_=len(GAPS_HECHOS)+2 
-for rowNum in range(2,_):
-        sheet.cell(row=rowNum, column=2).value = COOP_HECHAS[rowNum-2]
-        sheet.cell(row=rowNum, column=3).value = GAPS_HECHOS[rowNum-2]
-wb.save('NUMEROS_DE_GAP.xlsx')
+
+                wb = openpyxl.load_workbook('NUMEROS_DE_GAP.xlsx')                
+                ws = wb.active
+                sheet=wb['GAP']
+                sheet.cell(row=len(GAPS_HECHOS)+2 , column=2).value = COOP_HECHAS[len(GAPS_HECHOS)-1]
+                sheet.cell(row=len(GAPS_HECHOS)+2 , column=3).value = GAPS_HECHOS[len(GAPS_HECHOS)-1]
+                wb.save('NUMEROS_DE_GAP.xlsx')
 
 #---------------------------
 print('Las siguientes cooperaciones fueron cargadas con exito:')
