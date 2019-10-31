@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 
-import docx
+import csv
+import math
 import os
-import pyperclip
 import re
 import shelve
-import math
-import csv
-import xlsxwriter
-import openpyxl
 import shutil
+
+import docx
+import openpyxl
 import pandas as pd
+import pyperclip
+import xlsxwriter
 from openpyxl import Workbook
+
 
 #Gloriosas funciones
 def purge(x):
@@ -31,33 +33,46 @@ def getText(filename):
     for para in doc.paragraphs:
         fullText.append(para.text)
     return ''.join(fullText)
-def mostrarlista():
-    '''Esta Funcion sirve para Mostrarte todos los elementos cargados en la lista COOP, de una manera mas linda
-    '''
-    barra()
-    for i in range(len(COOP)):
-        if COOP[i]=='ERROR EN LA CARGA':
-            print('CHECKEAR EL SIGUIENTE VALOR')
-            print('V'*80)
-        if i < 10:
-            print(str(i)+'. '+TITLE[i].ljust(30,'.')+COOP[i].rjust(40, '.'))
-        else:
-            print(str(i)+'. '+TITLE[i].ljust(29,'.')+COOP[i].rjust(40, '.'))
-        if COOP[i]=='ERROR EN LA CARGA':
-            print('^'*80)
-    if Se_encontraron_drogas_no_soportadas==True:
-        print('18. '+Drogas_No_Soportada.ljust(29,'.')+drg[Drogas_No_Soportada].rjust(40, '.'))
-    barra()
 def barra():
     '''Es una barra, que barrea 80 veces
     '''
     print('~'*80)
+def mostrarlista():
+    '''Esta Funcion sirve para Mostrarte todos los elementos cargados en la lista COOP, de una manera mas linda
+    '''
+    barra()
+    for index,(Titulos,Cooperaciones) in enumerate(zip(TITLE,COOP)):
+        if Cooperaciones=='ERROR EN LA CARGA':
+            print('CHECKEAR EL SIGUIENTE VALOR')
+            print('V'*80)
+        if index < 10:
+            print(f"{index}.{Titulos.ljust(30,'.')}{Cooperaciones.rjust(40, '.')}")
+        else:
+            print(f"{index}.{Titulos.ljust(29,'.')}{Cooperaciones.rjust(40, '.')}")
+        if Cooperaciones=='ERROR EN LA CARGA':
+            print('^'*80)
+    if Se_encontraron_drogas_no_soportadas==True:
+        print('18. '+Drogas_No_Soportada.ljust(29,'.')+drg[Drogas_No_Soportada].rjust(40, '.'))
+    barra()
 def getData(Source,Frase_Inicial,Frase_Final):
     '''Esta funcion sirve para extraer un fragmento de texto variable, que se encuentra entre dos frases constantes en el acta. 
     Si no encuentra la Frase_Inicial o la Frase_Final en el texto, el programa transforma la frase que no se encuentra en REGEX y la busca. 
     Si aun asi, no la encuentra, devuelve ese texto
     '''
-    if Frase_Inicial not in Source or Frase_Final not in Source:
+    #FIRST, PURGAMOS DE TILDES, BC REASONS
+    Con_Tilde=['Á','É','Í','Ó','Ú']
+    Sin_Tilde=['A','E','I','O','U']
+    for i in range(5):
+        while True:
+            if Con_Tilde[i] in Source:
+                Source=Source.replace(Con_Tilde[i],Sin_Tilde[i])
+            else:
+                break
+    #SEGUNDO, PURGAMOS DE DOBLES ESPACIOS. SI, PASA
+    if '  ' in Source:
+        Source=Source.replace('  ',' ')
+    if (Frase_Inicial not in Source or 
+        Frase_Final   not in Source):
         try:
             Source=Transformar_en_ReGex(Frase_Inicial,Source)
             Source=Transformar_en_ReGex(Frase_Final,Source)
@@ -69,28 +84,27 @@ def getData(Source,Frase_Inicial,Frase_Final):
         Source=Source.split(Frase_Final)
         Source=purge(Source[0])
     except:
-        print('Error desconocido al tratar de encontra las frases "{}" y/o "{}". Revisa esa parte del acta'.format(Frase_Inicial,Frase_Final))
+       pass
     return Source
 def Transformar_en_ReGex(Frase_a_regexear,Source):
     '''Esta funcion sirve para agarrar "Frase_a_regexear", la divide en letras, cada letra termina "(letra)?(.)" para que sirva
     para buscarlo usando Regex, en forma de lista. Despues, busca en el Source usando la lista de patrones y busca el match, devolviendotelo
     '''
-    dic={}
-    Palabras_corregidas=[]
+    dic,Palabras_corregidas={},[]
     Palabras=Frase_a_regexear.split()
     for palabra in Palabras:
         palabra=list(palabra)
         if len(palabra)<4:
                 continue
-        for i in range(len(palabra)):
-            nueva_letra='({})?(.)?'.format(palabra[i])
-            if i ==0:
-                palabra_regexeada =nueva_letra+''.join(palabra[i+1:])
-            elif i ==(len(palabra)-1):
-                palabra_regexeada= ''.join(palabra[:i])+nueva_letra
+        for index, letra in enumerate(palabra):
+            nueva_letra=f'({letra})?(.)?'
+            if index ==0:
+                palabra_regexeada =nueva_letra+''.join(palabra[index+1:])
+            elif index ==(len(palabra)-1):
+                palabra_regexeada= ''.join(palabra[:index])+nueva_letra
             else:
-                palabra_regexeada= ''.join(palabra[:i])+nueva_letra+''.join(palabra[i+1:])
-            dic[''.join(palabra)+'_'+str(i)]=palabra_regexeada
+                palabra_regexeada= ''.join(palabra[:index])+nueva_letra+''.join(palabra[index+1:])
+            dic[''.join(palabra)+'_'+str(index)]=palabra_regexeada
     for k,v in dic.items():
         Patron=re.compile(v)
         Palabra_mal_escrita=Patron.search(Source)
@@ -103,7 +117,6 @@ def Transformar_en_ReGex(Frase_a_regexear,Source):
         if palabras in Source:
             Source=Source.replace(palabras,Palabra_bien_escrita)
     return Source
-
 def replace_string(Doc,Frase_a_cambiar,Frase_cambiada):
     '''Esta funcion agarra un Doc con una tabla (en este caso la hoja de ruta), y escanea por todas las celdas buscando la "Frase_a_cambiar" y la reemplaza por "Frase_cambiada"
     '''
@@ -157,7 +170,7 @@ Meses={'ENERO':'01',
 Cantidad_de_cooperaciones_leidas=[]
 #-------------------------------------------------------------------------------------------------------------------------------
 #Creacion de los DF con sus respetivos titulos (Los titulos son usados despues, por eso no los puse adentro)
-Titulo_PROD=    ['FECHA DE INGRESO',
+Titulo_PROD=   ['FECHA DE INGRESO',
                 'Nro',
                 'Dependencia',
                 'Srio. Nro.',
@@ -214,9 +227,16 @@ Titulo_Pericias=['FECHA DE INGRESO',
                 'MAGISTRADO INTERVENTOR'
                 ]
 #-------------------------------------------------------------------------------------------------------------------------------
-#Mensaje de bienvenida
+Contraseña
+ while True:
+     Control=input('error\n')
+     if Control=='23737':
+         break
+     else:
+         exit()
+#-------------------------------------------------------------------------------------------------------------------------------
 print('''
-Bienvenido al PATA (Programa de Automatizacion de Tareas Administrativas) version 1.7
+Bienvenido al PATA (Programa de Automatizacion de Tareas Administrativas) version 1.9
 Este programa sirve para leer Actas en formado .DOCX y crear automaticamente las hojas de ruta, junto con un Excel llamado 'INFO' que en las 3 paginas te deja listo la informacion para pasar a la ODI92, Pericias pendientes, Productividad y Libro virtual
 Cada vez que haya un error(puede ser por error del programa, o porque los oficiales escriben CUALQUIER COSA),
 el programa mostrara la seccion donde DEBERIA estar la informacion y te va a pedir que la introduzcas manualmente.
@@ -231,39 +251,44 @@ ASI QUE BUENO... USEN MAYUSCULAS
 
 Desea correr el programa en "Modo Seguro"? (Modo seguro te muestra todos los datos leidos ANTES de pasarlos a los excels
 ''')
-
 if input('Si/No   ').upper()=='SI':
     Modo_Seguro=True
 else:
     Modo_Seguro=False
+#--------------------------------------------------------------------------------------------------
+#Seteo las variables que cuentan la cantidad de cooperaciones
 CANTIDAD_DE_COOPERACIONES_HECHAS=1
 CONTADOR_DE_FILAS_PARA_ODI92=1
 #TRATO DE ABRIR EL EXCEL
-try:
-    wb = openpyxl.load_workbook('info.xlsx')                
-    ws = wb.active
-    sheet=wb['LIBRO']
-except:
+if 'info.xlsx' in os.listdir('.'):
+    try:
+        wb = openpyxl.load_workbook('info.xlsx')                
+        ws = wb.active
+        sheet=wb['LIBRO']
+        CANTIDAD_DE_COOPERACIONES_HECHAS+= ws.max_row
+        CONTADOR_DE_FILAS_PARA_ODI92+= ws.max_row
+    except:
+        pass
+else:
     wb = Workbook()
     ws = wb.active
     ws.title = "LIBRO"
     sheet=wb['LIBRO']
-for ColumnNum in range(len(Titulo_LIBRO)):
-    sheet.cell(row=1, column=ColumnNum+1).value =Titulo_LIBRO[ColumnNum]
-wb.save('info.xlsx')
-ws=wb.create_sheet("PRODUCTIVIDAD")
-sheet=wb["PRODUCTIVIDAD"]
-for ColumnNum in range(len(Titulo_PROD)):
-    sheet.cell(row=1, column=ColumnNum+1).value =Titulo_PROD[ColumnNum]
-ws=wb.create_sheet("ODI92")
-sheet=wb["ODI92"]
-for ColumnNum in range(len(Titulo_PROD)):
-    sheet.cell(row=1, column=ColumnNum+1).value =Titulo_ODI92[ColumnNum]
-ws=wb.create_sheet("PERICIAS ADEUDADAS")
-sheet=wb["PERICIAS ADEUDADAS"]
-for ColumnNum in range(len(Titulo_Pericias)):
-    sheet.cell(row=1, column=ColumnNum+1).value =Titulo_Pericias[ColumnNum]
-wb.save('info.xlsx')
+    for ColumnNum in range(len(Titulo_LIBRO)):
+        sheet.cell(row=1, column=ColumnNum+1).value =Titulo_LIBRO[ColumnNum]
+    ws=wb.create_sheet("PRODUCTIVIDAD")
+    sheet=wb["PRODUCTIVIDAD"]
+    for ColumnNum in range(len(Titulo_PROD)):
+        sheet.cell(row=1, column=ColumnNum+1).value =Titulo_PROD[ColumnNum]
+    ws=wb.create_sheet("ODI92")
+    sheet=wb["ODI92"]
+    for ColumnNum in range(len(Titulo_PROD)):
+        sheet.cell(row=1, column=ColumnNum+1).value =Titulo_ODI92[ColumnNum]
+    ws=wb.create_sheet("PERICIAS ADEUDADAS")
+    sheet=wb["PERICIAS ADEUDADAS"]
+    for ColumnNum in range(len(Titulo_Pericias)):
+        sheet.cell(row=1, column=ColumnNum+1).value =Titulo_Pericias[ColumnNum]
+    wb.save('info.xlsx')
 
 #-------------------------------------------------------------------------------------------------------------------------------
 #ACA SE RENOMBRAN LOS DOCX PARA ORDENARSE (IKR)
@@ -280,6 +305,7 @@ for filename in os.listdir('.'):
         try:
             doc=getText(filename)
             doc=doc.upper()
+#---------------------------------------------------------------------------------------------------------------------------
             docfull= docx.Document(filename)
             section = docfull.sections[0]
             header = section.header
@@ -298,505 +324,611 @@ for filename in os.listdir('.'):
             '\n Por favor saquelo de la carpeta y copielo manualmente(vuelva a iniciar el programa)')
             
 
-
-
 #DESPUES DE ESE CANCER, EMPIEZA LO DECENTE
-
 
 for filename in os.listdir('.'):
     if filename.endswith(' -TEMPORAL.docx'): 
-        TITLE=['Cooperacion',
-                'Sumario',
-                'LP',
-                'Suscribiente', 
-                'Comisaria/Division/etc',
-                'Fiscalia/Juzgado',
-                'Magistrado interventor',
-                'Secretaria', 
-                'Secretario',
-                'Imputado/s',
-                'Perito',   
-                'Fecha',
-                'Hora de inicio',
-                'Hora de finalizacion',
-                'Peso de MDMA',
-                'Peso de Marihuana',
-                'Peso de Clorhidrato de Cocaina',
-                'Peso de Base de Cocaina'
-                ]
         try:
-            doc=getText(filename).upper()
-            docfull= docx.Document(filename)
-        except:
-            print('''
-            Hubo un error inesperado (ni idea que puede ser) o el archivo que ingresaste NO ES un archivo .docx')
-            Pruebe de Frase_cambiada. Si no funciona y vuelve a ver este mensaje es que se rompio el programa o hay algo muy raro con el archivo que esta leyendo{}.        
-            Por favor saquelo de la carpeta y copielo manualmente(vuelva a iniciar el programa)
-                '''.format(filename))
+            TITLE=['Cooperacion',
+                    'Sumario',
+                    'LP',
+                    'Suscribiente', 
+                    'Comisaria/Division/etc',
+                    'Fiscalia/Juzgado',
+                    'Magistrado interventor',
+                    'Secretaria', 
+                    'Secretario',
+                    'Imputado/s',
+                    'Perito',   
+                    'Fecha',
+                    'Hora de inicio',
+                    'Hora de finalizacion',
+                    'Peso de MDMA',
+                    'Peso de Marihuana',
+                    'Peso de Clorhidrato de Cocaina',
+                    'Peso de Base de Cocaina'
+                    ]   
+            COOP=['ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA','ERROR DE CARGA']
+            try:
+                doc=getText(filename).upper()
+                docfull= docx.Document(filename)
+            except:
+                print(f'''
+                Hubo un error inesperado (ni idea que puede ser) o el archivo que ingresaste NO ES un archivo .docx')
+                Pruebe de Frase_cambiada. Si no funciona y vuelve a ver este mensaje es que se rompio el programa o hay algo muy raro con el archivo que esta leyendo{filename}.        
+                Por favor saquelo de la carpeta y copielo manualmente(vuelva a iniciar el programa)
+                    ''')
+            #-------------------------------------------------------------------------------------------------------------------------------           
+            ##Numero de Cooperacion y Sumario
+            try:
+                section = docfull.sections[0]
+                header = section.header
+                for paragraph in header.paragraphs:
+                    #Aca, escanea todos los parrafos en el encabezado y los almacena en las variables
+                    if 'COOPERACION' in paragraph.text:
+                        Reglon_Coop=paragraph.text
+                    if ('SUMARIO' in paragraph.text or 
+                         'CAUSA' in paragraph.text):
+                        Reglon_Sumario=paragraph.text
+                Patron_Numero_COOP=re.compile(r'((\d)+)')
+                Patron_COOP=re.compile(r'(((\d)+)(/)?((\d)*)?)')
+                if '.' in Reglon_Sumario: #CON ESTO EVITO QUE ME TOME 12.321 COMO DOS NUMEROS
+                    Reglon_Sumario=Reglon_Sumario.replace('.','') 
+                if ',' in Reglon_Sumario: #CON ESTO EVITO QUE ME TOME 12,321 COMO DOS NUMEROS
+                    Reglon_Sumario=Reglon_Sumario.replace(',','') 
+                if ('2019' in Reglon_Sumario and 
+                    '/' not in Reglon_Sumario): #evito cuando se comen el /, porque pasa
+                    Reglon_Sumario=Reglon_Sumario.replace('2019','/2019') 
+                Numero_SUMARIO=Patron_COOP.search(Reglon_Sumario)
+                Numero_COOP=Patron_Numero_COOP.search(Reglon_Coop)
+                Se_Encontro_Error_en_la_carga=False
+                COOP[0]='SA'+Numero_COOP.group()
+                COOP[1]=Numero_SUMARIO.group()
+            except:
+                print('Error en la lectura del encabezado. Por favor, introduzcalo manualmente   ')
+                COOP[0]=purge(input('Numero de cooperacion:  '))
+                COOP[1]=purge(input('Numero de sumario:  '))
+            barra()
+            print(f'ACTUALMENTE LEYENDO LA COOPERACION : {COOP[0]}-19')
+            barra()
 
-        #-------------------------------------------------------------------------------------------------------------------------------
-        #Numero de Cooperacion y Sumario
-        try:
-            section = docfull.sections[0]
-            header = section.header
-            for paragraph in header.paragraphs:
-                #Aca, escanea todos los parrafos en el encabezado y los almacena en las variables
-                if 'COOPERACION' in paragraph.text:
-                    Reglon_Coop=paragraph.text
-                if 'SUMARIO' in paragraph.text:
-                    Reglon_Sumario=paragraph.text
-            Numero_un_solo_digito=re.compile(r'((\d)+)')
-            Numero_COOP=Numero_un_solo_digito.search(Reglon_Coop)
-            Numero_de_sumario=re.compile(r'(((\d)+)(/)?((\d)*)?)')
-            Numero_SUMARIO=Numero_de_sumario.search(Reglon_Sumario)
-            COOP=['ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA','ERROR EN LA CARGA',]
-            Se_Encontro_Error_en_la_carga=False
-            COOP[0]='SA'+Numero_COOP.group()
-            COOP[1]=Numero_SUMARIO.group()
-        except:
-            print('''
-            Error en la lectura del encabezado. Por favor, introduzcalo manualmente. Aca esta el fragmento donde DEBERIA estar los numeros necesarios:
-            {}'''.format(spam))
-            section = docfull.sections[0]
-            header = section.header
-            spam=header.paragraphs
-            COOP[0]=purge(input('Numero de cooperacion:'))
-            COOP[1]=purge(input('Numero de sumario:'))
-        barra()
-        print('ACTUALMENTE LEYENDO LA COOPERACION : '+COOP[0]+'-19')
-        barra()
+            #-------------------------------------------------------------------------------------------------------------------------------
+            #LP
+            try:
+                Texto_Suscribiente=getData(doc,'SUSCRIBE','DEL NUMERARIO')
+                Patron_numero_LP= re.compile(r'(\d)+')
+                    #-- Hago esto para evitar que los oficiales Primeros me porneen el LP
+                bugg=[' 1 ','1°','1º','1RO','1.RO','1ERO',',','.']
+                for bugs in bugg:
+                    if bugs in Texto_Suscribiente:
+                        Texto_Suscribiente=Texto_Suscribiente.replace(bugs,'')
+                        #- fin del parche
+                COOP[2]=Patron_numero_LP.search(Texto_Suscribiente).group()
+                if COOP[2]=='1':
+                    raise Error
+            except:
+                print(f"Error al leer el LP del suscribiente. Por favor, introduzcalo manualmente. Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n.{getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES')}")
+                COOP[2]=input('LP:   ')
 
-        #-------------------------------------------------------------------------------------------------------------------------------
-        #LP
-        try:
-            Texto_Suscribiente=getData(doc,'SUSCRIBE','DEL NUMERARIO')
-            Patron_numero_LP= re.compile(r'(\d)+')
-            bugg=re.compile(r'(°|º|/s)?1(°|º|/s)?')
-            if bugg.search(Texto_Suscribiente):
-                bug=bugg.search(Texto_Suscribiente)
+            #-------------------------------------------------------------------------------------------------------------------------------            
+            #Suscribiente    
+            try:    
                 Texto_Suscribiente=Texto_Suscribiente.split()
-                Texto_Suscribiente.remove(bug.group())
-                Texto_Suscribiente=' '.join(Texto_Suscribiente)
-            COOP[2]=Patron_numero_LP.search(Texto_Suscribiente).group()
-                    
-        except:
-            print('Error al leer el LP del suscribiente. Por favor, introduzcalo manualmente. Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n.{}'.format(
-                getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES')))
-            COOP[2]=input('LP:   ')
+                eggs=re.compile(r'L(.)?P(.)?[^RIMERO]?')
+                for i in range(len(Texto_Suscribiente)):
+                    try:
+                        if eggs.search(Texto_Suscribiente[i]):
+                            _=eggs.search(Texto_Suscribiente[i])
+                            _=_.group()
+                            Texto_Suscribiente.remove(_.strip(' '))
+                    except:
+                        continue
+                if COOP[2] in Texto_Suscribiente:
+                    Texto_Suscribiente.remove(COOP[2])
+                COOP[3]=' '.join(Texto_Suscribiente)
+            except:
+                COOP[3]=input('Error a leer el nombre de suscribiente. Por favor introduzcalo manualmente. Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n    {}'.format(getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES')).upper())
 
-        #-------------------------------------------------------------------------------------------------------------------------------            
-        #Suscribiente    
-        try:    
-            Texto_Suscribiente=Texto_Suscribiente.split()
-            eggs=re.compile(r'L(.)?P(.)?[^RIMERO]?')
-            for i in range(len(Texto_Suscribiente)):
-                try:
-                    if eggs.search(Texto_Suscribiente[i]):
-                        _=eggs.search(Texto_Suscribiente[i])
-                        _=_.group()
-                        Texto_Suscribiente.remove(_.strip(' '))
-                except:
-                    continue
-            if COOP[2] in Texto_Suscribiente:
-                Texto_Suscribiente.remove(COOP[2])
-            COOP[3]=' '.join(Texto_Suscribiente)
-        except:
-            COOP[3]=input('Error a leer el nombre de suscribiente. Por favor introduzcalo manualmente. Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n{}    '.format(getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES'))).upper()
-
-        #-------------------------------------------------------------------------------------------------------------------------------
-        #Comisaria/Division/etc
-        try:
-            spam=getData(doc,'NUMERARIO DE','A LOS FINES')
-            Patron_Numero_de_comisaria=re.compile(r'((\d)?\d)(\w)?')
-            if Patron_Numero_de_comisaria.search(spam):
-                Numero_de_comisaria=Patron_Numero_de_comisaria.search(spam).group()
-                Numero_de_comisaria='CC'+Numero_de_comisaria           
-                COOP[4]=purge(spam)
-            elif 'DIVIS' in spam:
-                spam=spam.split('DIVIS')
-                spam='DIVIS'+spam[1]
-                COOP[4]=(purge(spam))
-                Numero_de_comisaria=purge(spam)
-            else:
-                Numero_de_comisaria=spam
-        except:
-            Comisaria=input('Error al leer el nombre de la comisaria/division/etc. Por favor, introduzcalo manualmente:Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n{}'.format(getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES'))).upper()
-            if Patron_Numero_de_comisaria.search(Comisaria):
-                Numero_de_comisaria=Patron_Numero_de_comisaria.search(Comisaria).group()
-                Numero_de_comisaria='CC'+Numero_de_comisaria
-            else:
-                Numero_de_comisaria=Comisaria            
-            COOP[4]=(purge(Comisaria))
-
-        #-------------------------------------------------------------------------------------------------------------------------------            
-        #Magisterio interventor
-        try:
-            Magisterio_Interventor=getData(doc,'CON INTERVENCIÓN DE','SECRETAR')
-            if 'JUZGADO O FISCALIA' in Magisterio_Interventor:
-                Magisterio_Interventor.replace('JUZGADO O FISCALIA','')
-            Secretaria_Interventora=getData(doc,'SECRETA','EN LA QUE RESULTA')
-            fiscalia=re.compile(r'((.)?F(.)?I(.)?S(.)?C(.)?A(.)?L(.)?.(.)?A(.)?)')
-            juzgado=re.compile(r'((.)?J(.)?U(.)?Z(.)?G(.)?A(.)?D(.)?O(.)?)')
-            Numero_de_Magisterio=re.compile(r'((\d)?(\d)?\d)')
-            dr=re.compile(r'(DR(A)?(.*)?(\w)+)')
-            if fiscalia.search(Magisterio_Interventor):
-                Tipo_de_Magisterio='FISCALIA'       #Tipo de Magisterio. Si es Fiscalia o Juzgado (me sirve para distinguir)          
-                if Numero_de_Magisterio.search(Magisterio_Interventor):
-                    COOP[5]=Numero_de_Magisterio.search(Magisterio_Interventor).group()
+            #-------------------------------------------------------------------------------------------------------------------------------
+            #Comisaria/Division/etc
+            try:
+                spam=getData(doc,'NUMERARIO DE','A LOS FINES')
+                Patron_Numero_de_comisaria=re.compile(r'((\d)?\d)(\w)?')
+                if Patron_Numero_de_comisaria.search(spam):
+                    Numero_de_comisaria=Patron_Numero_de_comisaria.search(spam).group()
+                    Numero_de_comisaria='CC'+Numero_de_comisaria           
+                elif ('D.O.E.R.M.P'          in spam or 
+                    'OPERACIONES ESPECIALES' in spam):
+                    Numero_de_comisaria='DIVISION OPERACIONES ESPECIALES'
+                elif 'DIVIS' in spam:
+                    spam=spam.split('DIVIS')
+                    spam='DIVIS'+spam[1]
+                    COOP[4]=(purge(spam))
+                    Numero_de_comisaria=purge(spam)
                 else:
-                    COOP[5]=input('Eror: No se ha encontrado el numero del Magisterio, necesito que lo introduzcas manualmente.')
-                Numero_de_Fiscalia='FISCALIA'+COOP[5]
-                if dr.search(Magisterio_Interventor):
-                    if ',' in (dr.search(Magisterio_Interventor).group()):
-                        _=(dr.search(Magisterio_Interventor).group()).split(',')
-                        _=_[0]
-                    COOP[6]=(_)
+                    Numero_de_comisaria=spam
+                COOP[4]=purge(Numero_de_comisaria)
+            except:
+                Comisaria=input('Error al leer el nombre de la comisaria/division/etc. Por favor, introduzcalo manualmente:Aca esta el fragmento donde DEBERIA estar los numeros necesarios\n{}\n'.format(getData(doc,'EL FUNCIONARIO','A LOS FINES LEGALES')).upper())
+                if Patron_Numero_de_comisaria.search(Comisaria):
+                    Numero_de_comisaria=Patron_Numero_de_comisaria.search(Comisaria).group()
+                    Numero_de_comisaria='CC'+Numero_de_comisaria
                 else:
-                    print('Error:No se ha encontrado el nombre del fiscal. Introducilo Manualmente')
-                    COOP[6]=input('Error:No se ha encontrado el nombre del fiscal. Introducilo Manualmente. Aca esta el fragmento donde DEBERIA estar el nombre del fiscal\n{}'.format(Magisterio_Interventor))
-                COOP[7]=('ÚNICA')
-                if dr.search(Secretaria_Interventora):
-                    if ',' in dr.search(Secretaria_Interventora).group():
-                        _=dr.search(Secretaria_Interventora).group().split(',')
-                        COOP[8]=_[0]
+                    Numero_de_comisaria=Comisaria            
+                COOP[4]=(purge(Comisaria))
+
+            #-------------------------------------------------------------------------------------------------------------------------------            
+            #Magisterio interventor
+            try:
+                Magisterio_Interventor=getData(doc,'INTERVENCION DE','SECRETAR')
+                if 'JUZGADO O FISCALIA' in Magisterio_Interventor:
+                    Magisterio_Interventor.replace('JUZGADO O FISCALIA','')
+                Secretaria_Interventora=getData(doc,'SECRETA','EN LA QUE RESULTA')
+                fiscalia=re.compile(r'((.)?F(.)?I(.)?S(.)?C(.)?A(.)?L(.)?.(.)?A(.)?)')
+                juzgado=re.compile(r'((.)?J(.)?U(.)?Z(.)?G(.)?A(.)?D(.)?O(.)?)')
+                Numero_de_Magisterio=re.compile(r'((\d)?(\d)?\d)')
+                dr=re.compile(r'(DR(A)?(.*)?(\w)+)')
+                if fiscalia.search(Magisterio_Interventor):
+                    Tipo_de_Magisterio='F'       #Tipo de Magisterio. Si es Fiscalia o Juzgado (me sirve para distinguir)          
+                    if Numero_de_Magisterio.search(Magisterio_Interventor):
+                        COOP[5]=Numero_de_Magisterio.search(Magisterio_Interventor).group()
                     else:
-                        COOP[8]=dr.search(Secretaria_Interventora).group()
-                else:
-                    COOP[8]=input('Error:No se ha encontrado el nombre del secretario. Introducilo Manualmente. Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n'+'SECRE'+Secretaria_Interventora+' EN LA QUE RESULTA\n')
-            elif juzgado.search(Magisterio_Interventor):
-                Tipo_de_Magisterio='JUZGADO' #Tipo de Magisterio. Si es Fiscalia o Juzgado (me sirve para distinguir)
-                if Numero_de_Magisterio.search(Magisterio_Interventor):
-                    COOP[5]=Numero_de_Magisterio.search(Magisterio_Interventor).group()
-                else:
-                    COOP[5]=input('Eror: No se ha encontrado el numero del Magisterio, necesito que lo introduzcas manualmente.\n')
-                Numero_de_Juzgado='J'+COOP[5]
-                if dr.search(Magisterio_Interventor):
-                    if ',' in dr.search(Magisterio_Interventor).group():
-                        _=dr.search(Magisterio_Interventor).group().split(',')
-                        _=_[0]
-                    COOP[6]=_
-                else:
-                    print('Error:No se ha encontrado el nombre del juez. Introducilo manualmente ')
-                    COOP[6]=input('Aca esta el fragmento donde DEBERIA estar el nombre del juez\n'+Magisterio_Interventor+'\n')
-                if Numero_de_Magisterio.search(Secretaria_Interventora):
-                    COOP[7]=Numero_de_Magisterio.search(Secretaria_Interventora).group()
-                else:
-                    COOP[7]=input('Eror: No se ha encontrado el numero de la secretaria, necesito que lo introduzcas manualmente. Si es una fiscalia y salio este mensaje, pone "UNICA"\n')
-                Numero_de_Juzgado_y_Secretaria=Numero_de_Juzgado+' S'+COOP[7]
-                if dr.search(Secretaria_Interventora):
-                    if ',' in dr.search(Secretaria_Interventora).group():
-                        _=dr.search(Secretaria_Interventora).group().split(',')
-                        COOP[8]=_[0]
+                        COOP[5]=input('Error: No se ha encontrado el numero del Magisterio, necesito que lo introduzcas manualmente.')
+                    Numero_de_Fiscalia='F'+COOP[5]
+                    if dr.search(Magisterio_Interventor):
+                        if ',' in (dr.search(Magisterio_Interventor).group()):
+                            Fiscal=(dr.search(Magisterio_Interventor).group()).split(',')
+                            Fiscal=Fiscal[0]
+                        else:
+                            Fiscal=dr.search(Magisterio_Interventor).group()
+                        COOP[6]=Fiscal
                     else:
-                        COOP[8]=dr.search(Secretaria_Interventora).group()
+                        print('Error:No se ha encontrado el nombre del fiscal. Introducilo Manualmente')
+                        COOP[6]=input(f'Error:No se ha encontrado el nombre del fiscal. Introducilo Manualmente. Aca esta el fragmento donde DEBERIA estar el nombre del fiscal\n{Magisterio_Interventor}\n')
+                    COOP[7]='ÚNICA'
+                    if dr.search(Secretaria_Interventora):
+                        if ',' in dr.search(Secretaria_Interventora).group():
+                            Secretario=dr.search(Secretaria_Interventora).group().split(',')
+                            Secretario=Secretario[0]
+                        else:
+                            Secretario=dr.search(Secretaria_Interventora).group()
+                        COOP[8]=Secretario
+                    else:
+                        COOP[8]=input(f'Error:No se ha encontrado el nombre del secretario. Introducilo Manualmente. Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n SECRE{Secretaria_Interventora} EN LA QUE RESULTA\n')
+                elif juzgado.search(Magisterio_Interventor):
+                    Tipo_de_Magisterio='J' #Tipo de Magisterio. Si es Fiscalia o Juzgado (me sirve para distinguir)
+                    if Numero_de_Magisterio.search(Magisterio_Interventor):
+                        COOP[5]=Numero_de_Magisterio.search(Magisterio_Interventor).group()
+                    else:
+                        COOP[5]=input('Eror: No se ha encontrado el numero del Magisterio, necesito que lo introduzcas manualmente.\n')
+                    Numero_de_Juzgado='J'+COOP[5]
+                    if dr.search(Magisterio_Interventor):
+                        if ',' in dr.search(Magisterio_Interventor).group():
+                            Juez=dr.search(Magisterio_Interventor).group().split(',')
+                            Juez=Juez[0]
+                        else:
+                            Juez=dr.search(Magisterio_Interventor).group()
+                        COOP[6]=Juez
+                    else:
+                        print('Error:No se ha encontrado el nombre del juez. Introducilo manualmente ')
+                        COOP[6]=input(f'Aca esta el fragmento donde DEBERIA estar el nombre del juez\n{Magisterio_Interventor}\n')
+                    if Numero_de_Magisterio.search(Secretaria_Interventora):
+                        COOP[7]=Numero_de_Magisterio.search(Secretaria_Interventora).group()
+                    else:
+                        COOP[7]=input('Eror: No se ha encontrado el numero de la secretaria, necesito que lo introduzcas manualmente. Si es una fiscalia y salio este mensaje, pone "UNICA"\n')
+                    Numero_de_Juzgado_y_Secretaria=Numero_de_Juzgado+' S'+COOP[7]
+                    if dr.search(Secretaria_Interventora):
+                        if ',' in dr.search(Secretaria_Interventora).group():
+                            Secretario=dr.search(Secretaria_Interventora).group().split(',')
+                            COOP[8]=Secretario[0]
+                        else:
+                            COOP[8]=dr.search(Secretaria_Interventora).group()
+                    else:
+                        print('Error:No se ha encontrado el nombre del secretario. Introducilo Manualmente')
+                        COOP[8]=input(f'Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n SECRE{Secretaria_Interventora} EN LA QUE RESULTA\n')
+            except:
+                print('Algo terrible paso con la parte del magisterio interventor. Rellenalo manualmente')
+                Tipo_de_Magisterio=input('Primero introduzca si es Juzgado o Fiscalia. Si es cualquier otra cosa, este programa no lo soporta. Saque esa Cooperacion y vuelva a correr este programa   ').upper()
+                COOP[5]=(input('Numero de Fiscalia/Juzgado?   '))
+                COOP[6]=(input('Nombre del Fiscal/Juez?   '))
+                if Tipo_de_Magisterio=='F':
+                    COOP[7]='UNICA'
                 else:
-                    print('Error:No se ha encontrado el nombre del secretario. Introducilo Manualmente')
-                    COOP[8]=input('Aca esta el fragmento donde DEBERIA estar el nombre del secretario\n'+'SECRE'+Secretaria_Interventora+' EN LA QUE RESULTA\n')
-        except:
-            print('Algo terrible paso con la parte del magisterio interventor. Rellenalo manualmente')
-            Tipo_de_Magisterio=input('Primero introduzca J o F si es Juzgado o Fiscalia. Si es cualquier otra cosa, este programa no lo soporta. Saque esa Cooperacion y vuelva a correr este programa')
-            COOP[5]=(input('Numero de Fiscalia/Juzgado?   '))
-            COOP[6]=(input('Nombre del Fiscal/Juez?   '))
-            COOP[7]=(input('Numero de Secretaria?(en caso de ser fiscalia poner "UNICA"   '))
-            COOP[8]=(input('Nombre del secretario?   '))
-        #-------------------------------------------------------------------------------------------------------------------------------            
-        #Imputado
-        try:
-            print('Por ahora no se como distinguir el imputado, necesito que lo escribas manualmente.\n'+
-                'Para ayudarte, aca tenes el fragmento del acta que habla de los imputados. Gracias y disculpas!\n{}'.format(getData(doc,'IMPUTADO','A FIN DE')))
-            COOP[9]=purge(input())
-        except:
-            COOP[9]=(input('Error al introducir imputados. Mira el acta e introducilo manualmente porque ocurrio un problema bastante grave a la hora de leer el acta\n'))
+                    COOP[7]=(input('Numero de Secretaria?   '))
+                COOP[8]=(input('Nombre del secretario?   '))
+            #-------------------------------------------------------------------------------------------------------------------------------            
+            #Imputado
+            #Primero vamos a poner una lista de cosas para sacar de la descripcion del imputado
+            try:
+                Palabras_a_eliminar=['/S',')',':',',','.','DNI','AÑOS','AÑO','EDAD','ARGENTINA','SOLTERA','DDO.','DDO','NRO','C.A.B.A','D.N.I','D.N.I.','TELEFONO', 'NO POSEE','SITO','CALLE','CABA', 'DOMICILIO', 'ARGENTINO', 'PARAGUAYO', 'BOLIVIANO', 'COLOMBIANO', 'VENEZOLANO','DIRECCION','/S:']
+                Texto_imputado=getData(doc,'IMPUTADO','SIENDO QUE EL MATERIAL FUE SECUESTRADO')
+                Patron_numero_direccion=re.compile(r'\d+')
+                Numeros_a_borrar= Patron_numero_direccion.findall(Texto_imputado)
+                for numeros in Numeros_a_borrar:
+                    if numeros in Texto_imputado:
+                        Texto_imputado=Texto_imputado.replace(numeros,'')
+                for palabras in Palabras_a_eliminar:
+                    if palabras in Texto_imputado:
+                        Texto_imputado=Texto_imputado.replace(palabras,'')
+            except:
+                pass
+            try:
+                Nombre_imputado=purge(input(f"Por ahora no se como distinguir el imputado, necesito que lo escribas manualmente.\n Para ayudarte, aca tenes el fragmento del acta que habla de los imputados. Si apretas enter, se tomara todo como nombre de imputado Gracias y disculpas!        \n{Texto_imputado}\n").upper())
+                if Nombre_imputado=='':
+                    Nombre_imputado=Texto_imputado
+                COOP[9]=Nombre_imputado
+            except:
+                COOP[9]=input('Error al introducir imputados. Mira el acta e introducilo manualmente porque ocurrio un problema bastante grave a la hora de leer el acta\n')
 
-        #-------------------------------------------------------------------------------------------------------------------------------            
-        #Peritos
-        try:
-            spam=getData(doc,'AGREGANDO QUE PARA','SE UTILIZARÁN LOS SIGUIENTES REACTIVOS')
-            if 'FERNÁNDEZ' in spam:
-                spam=spam.replace('FERNÁNDEZ','FERNANDEZ')
-            if 'ALARCÓN' in spam:
-                spam=spam.replace('ALARCÓN','ALARCON')
-            Se_encontro_perito=False
-            for k in Nums.keys():
-                if k in spam:
-                    COOP[10]=(k)
-                    Se_encontro_perito=True
-            if Se_encontro_perito==False:
-                spam=(input('Ocurrio un error a la hora de leer el nombre del perito, por favor introduzcalo, con el LP/DNI separado por un guion. Por ejemplo, Fernandez-35417114 \n')).split('-')
-                COOP[10]=spam[0]
-                Nums[COOP[10]]=spam[1]
-        except:
-            COOP[10]=(input('Error CATASTROFICO a la hora de leer el acta en la parte del perito. Debe haber algun error importante en el modelo. Por favor, introduzca el perito manualmente'))
+            #TRYING SOMETHING OK? nada, exporto la basura, y despeus veo si puedo hacer algo con la data y eso. POR AHI PUEDO AUTOMATIZAR LOS IMPUTADOS?
+            try:
+                with open(('Imputad3.csv'), 'r', newline='') as myfile:
+                    reader = csv.reader(myfile)
+                    for row in reader:
+                        basura_para_boludear=row  
+                with open(('Imputad3.csv'), 'w', newline='') as myfile:
+                    Texto_imputado=Texto_imputado.split(' ') 
+                    for elements in Texto_imputado:
+                        if (elements != ' ' or 
+                             elements!='DE'):
+                            basura_para_boludear.append(elements)
+                    wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+                    wr.writerow(basura_para_boludear)
+            except:
+                pass
+            #-------------------------------------------------------------------------------------------------------------------------------            
+            #Peritos
+            try:
+                spam=getData(doc,'AGREGANDO QUE PARA','SE UTILIZARÁN LOS SIGUIENTES REACTIVOS')
+                Se_encontro_perito=False
+                for Peritos in Nums.keys():
+                    if Peritos in spam:
+                        if Se_encontro_perito==True:
+                            COOP[10]=f'{COOP[10]} y {Peritos}'
+                        COOP[10]=(Peritos)
+                        Se_encontro_perito=True
+                if Se_encontro_perito==False:
+                    spam=spam[0].split(' ')
+                    for words in spam:
+                        if purge(words) =='4032':
+                            COOP[10]='RODRIGUEZ'
+                            Nums[COOP[10]]='4032'
+                            Se_encontro_perito=True
+                            break
+                if Se_encontro_perito==False:
+                    spam=(input('Ocurrio un error a la hora de leer el nombre del perito, por favor introduzcalo, con el LP/DNI separado por un guion. Por ejemplo, Fernandez-35417114 \n')).split('-')
+                    COOP[10]=spam[0]
+                    Nums[COOP[10]]=spam[1]
+            except:
+                COOP[10]=(input('Error CATASTROFICO a la hora de leer el acta en la parte del perito. Debe haber algun error importante en el modelo. Por favor, introduzca el perito manualmente'))
 
-        #-------------------------------------------------------------------------------------------------------------------------------                            
-        #Fecha, Hora de inicio y finalizacion
-        ##Fecha
-        try:
-            spam=getData(doc,'AIRES, HOY',' SIENDO LAS').split()
-            dia=spam[0]
-            for k,v in Meses.items():
-                if k == spam[4]:
-                    mes = v
-            año=spam[7]
-            COOP[11]=dia+'/'+mes+'/'+año
-        except:
-            COOP[11]=input('Ha habido un error debido a que la fecha se encuentra mal escrita, para que la lea el programa, expresarla de la siguiente manera:'+
-            'hoy XX del Mes de XXXX del año XXXX, introduci la fecha manualmente en formato digital, Por ejemplo: 09/07/1816. Aca te dejo el fragmento del acta donde deberia esta la informacion\n{}').format(getData(doc,'AIRES, HOY',' SIENDO LAS'))
-        ##Hora inicial y final
-        try:
-            Hora=re.compile(r'((\d)?\d[,:;.]?\d{2})')
-            if Hora.search(getData(doc,'SIENDO LAS','HORAS')):
-                COOP[12]=Hora.search(getData(doc,'SIENDO LAS','HORAS')).group()
+            #-------------------------------------------------------------------------------------------------------------------------------                            
+            #Fecha, Hora de inicio y finalizacion
+            ##Fecha
+            try:
+                spam=getData(doc,'AIRES, HOY',' SIENDO LAS').split()
+                dia=spam[0]
+                for k,v in Meses.items():
+                    if k == spam[4]:
+                        mes = v
+                año=spam[7]
+                COOP[11]=f'{dia}/{mes}/{año}'
+            except:
+                Fecha=getData(doc,'AIRES, HOY',' SIENDO LAS')
+                COOP[11]=input(f'Ha habido un error debido a que la fecha se encuentra mal escrita, para que la lea el programa, expresarla de la siguiente manera: hoy XX del Mes de XXXX del año XXXX, introduci la fecha manualmente en formato digital, Por ejemplo: 09/07/1816. Aca te dejo el fragmento del acta donde deberia esta la informacion\n{Fecha}')
+            ##Hora inicial y final
+            try:
+                Patron_Hora=re.compile(r'((\d)?\d[,:;.]?\d{2})')
+                Puntitos=[',',':',';','.']   
+                if Patron_Hora.search(getData(doc,'SIENDO LAS','HORAS')):
+                    COOP[12]=Patron_Hora.search(getData(doc,'SIENDO LAS','HORAS')).group()
+                    for signos_de_puntuacion in Puntitos:
+                        if signos_de_puntuacion in COOP[12]:
+                            COOP[12]=COOP[12].replace(signos_de_puntuacion,':')
+                else:
+                    COOP[12]=(input('Error en el formato de la hora inicial. El programa solo admite XX:XX. Introduzca la hora inicial'    ))
+                if Patron_Hora.search(getData(doc,'TERMINADO EL ACTO, SIENDO','SE DA POR FINALIZADA')):
+                    COOP[13]=Patron_Hora.search(getData(doc,'TERMINADO EL ACTO, SIENDO','SE DA POR FINALIZADA')).group()
+                    for signos_de_puntuacion in Puntitos:
+                        if signos_de_puntuacion in COOP[13]:
+                            COOP[13]=COOP[13].replace(signos_de_puntuacion,':')
+                else:
+                    COOP[13]=(input('Error en el formato de la hora final. El programa solo admite XX:XX. Introduzca la hora de finalizacion    '))
+            except:
+                print('Error al leer la hora de inicio o finalizacion en el acta.\n'+
+                    'Por favor, introduzcalas manualmente en el formato XX:XX')
+                COOP[12]=input('Hora inicial:   ')
+                COOP[13]=input('Hora finalizacion:   ')
+            #-------------------------------------------------------------------------------------------------------------------------------            
+            #Peso de las Drogas. 
+            pesos=re.compile(r'\d*,?\.?\d{3}')
+            Dictado_de_la_pericia=reemplazar_palabra(getData(doc,'REALIZAR LA APERTURA','FINALIZADO EL PROCEDIMIENTO'),'GRAMOS','SUSTANCIA', 'MATERIAL')
+            if 'GRS' in Dictado_de_la_pericia:
+                Dictado_de_la_pericia=Dictado_de_la_pericia.replace('GRS','GRAMOS&')
+            if 'SUBSTANCIA' in Dictado_de_la_pericia:
+                Dictado_de_la_pericia=Dictado_de_la_pericia.replace('SUBSTANCIA','&SUSTANCIA')
+            if 'CIGARRILLO' in Dictado_de_la_pericia:               
+                Dictado_de_la_pericia=Dictado_de_la_pericia.replace('CIGARRILLO','&SUSTANCIA')  
+            if 'SEMILLA' in Dictado_de_la_pericia:
+                Dictado_de_la_pericia=Dictado_de_la_pericia.replace('SEMILLA','&SUSTANCIA VEGETAL') 
+            Dictado_de_la_pericia=Dictado_de_la_pericia.split('&') #CON ESTO LOGRO SEPARAR EN FRASES QUE EMPIECEN CON 'SUSTANCIA/MATERIAL' Y TERMINEN CON 'GRAMOS'. SUPONGO QUE ESTO CONTENDRA EL PESO DE LA DROGA
+            drg= {}
+            Se_encontro_droga=False
+            if 'MDMA' in doc:
+                COOP[14]=input('Hay MDMA, tenes que introducir manualmente el peso')
+                drg['MDMA']=COOP[14]
+                Se_encontro_droga=True
             else:
-                COOP[12]=(input('Error en el formato de la hora inicial. El programa solo admite XX:XX. Introduzca la hora inicial'    ))
-            if Hora.search(getData(doc,'TERMINADO EL ACTO, SIENDO','SE DA POR FINALIZADA')):
-                COOP[13]=Hora.search(getData(doc,'TERMINADO EL ACTO, SIENDO','SE DA POR FINALIZADA')).group()
-            else:
-                COOP[13]=(input('Error en el formato de la hora final. El programa solo admite XX:XX. Introduzca la hora de finalizacion    '))
-        except:
-            print('Error al leer la hora de inicio o finalizacion en el acta.\n'+
-                'Por favor, introduzcalas manualmente en el formato XX:XX')
-            COOP[12]=input('Hora inicial:   ')
-            COOP[13]=input('Hora finalizacion:   ')
-        #-------------------------------------------------------------------------------------------------------------------------------            
-        #Peso de las Drogas. 
-        pesos=re.compile(r'\d*,?\.?\d{3}')
-        Dictado_de_la_pericia=reemplazar_palabra(getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APERTURA','FINALIZADO EL PROCEDIMIENTO'),'GRAMOS','SUSTANCIA', 'MATERIAL')
-        if 'GRS' in Dictado_de_la_pericia:
-            Dictado_de_la_pericia=Dictado_de_la_pericia.replace('GRS','GRAMOS&')
-        if 'SUBSTANCIA' in Dictado_de_la_pericia:
-            Dictado_de_la_pericia=Dictado_de_la_pericia.replace('SUBSTANCIA','&SUSTANCIA')
-        if 'CIGARRILLO' in Dictado_de_la_pericia:               
-            Dictado_de_la_pericia=Dictado_de_la_pericia.replace('CIGARRILLO','&SUSTANCIA')  
-        if 'SEMILLA' in Dictado_de_la_pericia:
-            Dictado_de_la_pericia=Dictado_de_la_pericia.replace('SEMILLA','&SUSTANCIA VEGETAL') 
-        Dictado_de_la_pericia=Dictado_de_la_pericia.split('&') #CON ESTO LOGRO SEPARAR EN FRASES QUE EMPIECEN CON 'SUSTANCIA/MATERIAL' Y TERMINEN CON 'GRAMOS'. SUPONGO QUE ESTO CONTENDRA EL PESO DE LA DROGA
-        drg= {}
-        if 'MDMA' in doc:
-            COOP[14]=input('Hay MDMA, tenes que introducir manualmente el peso&')
-            drg['MDMA']=COOP[14]
-        else:
-            COOP[14]=('NO HAY')
-        Mari=0
-        Coca=0
-        Paco=0
-        for i in range(0,len(Dictado_de_la_pericia)-1):
-            if 'SUSTANCIA' in Dictado_de_la_pericia[i] or 'MATERIAL' in Dictado_de_la_pericia[i]:
-                if 'PESA' in Dictado_de_la_pericia[i] or 'PESO' in Dictado_de_la_pericia[i]:
-                    if pesos.findall(Dictado_de_la_pericia[i]):
-                        Peso_de_sustancia=float(str(pesos.findall(Dictado_de_la_pericia[i])[0]).replace(',','.'))
-                        mariajuana=['VEGETAL','VERDE AMARRONAD','VERDE','VERDEAMARRONAD','VERDE MARRON']
-                        if Peso_de_sustancia>1000:
-                            meme=input('Este numero, es un peso de droga o algun otro numero?\n{}. Si esta bien, apreta enter. Si no cualquier cosa y el programa descartara el numero y seguira leyendo\n'.format(str(Peso_de_sustancia)))
-                            if meme != '':
-                                Peso_de_sustancia=0
-                                continue
-                        for Descripciones_de_marihuana in mariajuana:
-                            if Descripciones_de_marihuana in Dictado_de_la_pericia[i]:
-                                Mari += Peso_de_sustancia
-                                Mari=round(Mari,3)
+                COOP[14]=('NO HAY')
+            Mari,Coca,Paco=0,0,0
+            for i in range(len(Dictado_de_la_pericia)-1):
+                if ('SUSTANCIA' in Dictado_de_la_pericia[i] or 
+                     'MATERIAL' in Dictado_de_la_pericia[i]):
+                    if ( 'PESA' in Dictado_de_la_pericia[i] or 
+                         'PESO' in Dictado_de_la_pericia[i] or 
+                        ' PSA ' in Dictado_de_la_pericia or 
+                        ' PSO ' in Dictado_de_la_pericia):
+                        if pesos.findall(Dictado_de_la_pericia[i]):
+                            Peso_de_sustancia=float(str(pesos.findall(Dictado_de_la_pericia[i])[0]).replace(',','.'))
+                            mariajuana=['VEGETAL',
+                                        'VERDE AMARRONAD',
+                                        'VERDE',
+                                        'VERDEAMARRONAD',
+                                        'VERDE MARRON'
+                                        ]
+                            if Peso_de_sustancia>1000:
+                                meme=input(f'Este numero, es un peso de droga o algun otro numero?\n{str(Peso_de_sustancia)}. Si esta bien, apreta enter. Si no cualquier cosa y el programa descartara el numero y seguira leyendo\n')
+                                if meme != '':
+                                    Peso_de_sustancia=0
+                                    continue
+                            for Descripciones_de_marihuana in mariajuana:
+                                if Descripciones_de_marihuana in Dictado_de_la_pericia[i]:
+                                    Mari += Peso_de_sustancia
+                                    Mari=round(Mari,3)
+                                    Dictado_de_la_pericia[i]='wea'
+                                    Se_encontro_droga=True
+                            if ('BLANC' in Dictado_de_la_pericia[i] or 
+                                'PULVERULENTA' in Dictado_de_la_pericia[i]):
+                                Coca+=Peso_de_sustancia
+                                Coca=round(Coca,3)
                                 Dictado_de_la_pericia[i]='wea'
-                        if 'BLANC' in Dictado_de_la_pericia[i] or 'PULVERULENTA' in Dictado_de_la_pericia[i]:
-                            Coca+=Peso_de_sustancia
-                            Coca=round(Coca,3)
-                            Dictado_de_la_pericia[i]='wea'
-                        if 'AMARI' in Dictado_de_la_pericia[i]:
-                            Paco+=Peso_de_sustancia
-                            Paco=round(Paco,3)
-                            Dictado_de_la_pericia[i]='wea'
-        #ESTA PARTE SIRVE PARA DETECTAR CUANDO HAY LIMPIO O ESO
-        foo=getData(doc,'FINALIZADO EL PROCEDIMIENTO','EL MATERIAL REMANENTE DEVUELTO')
-        if 'PLANT' in foo:
-            print('Se detecto la presencia de plantas. No hay chance de que pueda automatizar eso, asi que voy a meterlo como marihuana y modificalo en donde sea necesario(necesitaria introducir MUCHAS lineas de codigo para algo que pasa 1 vez por mes, y tengo hambre)')
-            COOP[15]=('420')
-            drg['MARIHUANA']='420'   
-        Drogas_No_Soportadas=['NO CONCLUYENTE','LIMPIO','BICARBONATO','ALMIDON','KETAMINA']
-        Se_encontraron_drogas_no_soportadas=False            
-        for weas in Drogas_No_Soportadas:
-            if weas in foo: 
-                print('Se ha detectado la presencia de algun tipo de sustancia {} la cual NO es soportada por este programa "de manera automatica"\n'+
-                'Por favor, introduzca el nombre de la sustancia (asi aparecera en la hoja de ruta y eso) y el peso\n'+
-                'Aca tenes el resultado del trunarc para guiarte\n '+foo.format(weas))                   
-                Se_encontraron_drogas_no_soportadas=True
-                Drogas_No_Soportada=input('Nombre de la droga?\n')
-                drg[Drogas_No_Soportada]=input('Peso de la droga?\n')
-                break
-        if 'CLORHIDRATO DE COCAINA' not in foo:
-            if Se_encontraron_drogas_no_soportadas== True:
-                Coca=0
-        if 'BASE DE COCAINA' not in foo:
-            if Se_encontraron_drogas_no_soportadas== True:
-                Paco=0
-        if Mari != 0:
-            Mari=str(Mari).replace('.',',')
-            COOP[15]=(Mari)
-            drg['MARIHUANA']=Mari
-        else:
-            COOP[15]=('NO HAY')
-        if Coca != 0:                               
-            Coca=str(Coca).replace('.',',')
-            COOP[16]=(Coca)
-            drg['CLORHIDRATO DE COCAINA']=Coca 
-        else:
-            COOP[16]=('NO HAY')
-        if Paco !=0:
-            Paco=str(Paco).replace('.',',')
-            COOP[17]=(Paco)
-            drg['BASE DE COCAINA']=Paco    
-        else:
-            COOP[17]=('NO HAY')
-                                   
-        #-------------------------------------------------------------------------------------------------------------------------------
-        #CANTIDAD DE SOBRES
-        try:
-            Dictado_de_la_pericia=getData(doc,'ACTO SEGUIDO SE PROCEDE A REALIZAR LA APERTURA','FINALIZADO EL PROCEDIMIENTO')
-            Patron_Sobre=re.compile(r'(SOBRE(S)?)')
-            if Patron_Sobre.search(Dictado_de_la_pericia):
-                _=Patron_Sobre.search(Dictado_de_la_pericia).group()
-                bacon=Dictado_de_la_pericia.replace(_,_+'WEA')
-                Sobre=getData(bacon,'DE','WEA')
-            else:
-                raise Error
-        except:
-            Sobre=input('Hubo un error. Cuantos sobres son en esta pericia? Introduzcalo a continuacion, por ejemplo "DOS SOBRES"    ')
-
-        #-------------------------------------------------------------------------------------------------------------------------------            
-        #CHECKEO QUE ESTE TODO BIEN. RE HACER TODO. VER COMO HAGO PARA QUE NO       
-        for i in range(len(COOP)):
-            if len(COOP[i])>70:
-                print('El programa detecto que el siguiente dato es muy largo, se puede deber a un problema de lectura o por ahi esta bien. Reviselo por las dudas:\n{}\nSi esta todo bien, presione enter. Si desea cambiarlo, presione cualquier otro boton'.format(COOP[i]))
-                if input()!='':
-                    COOP[i]=input('Introduzca por favor el valor correcto (o una version mas resumida, sin omitir los datos IMPORTANTES)')
-
-        #-------------------------------------------------------------------------------------------------------------------------------            
-        #Checkeo al final SI ESTA EN "MODO SEGURO"
-        if Se_encontraron_drogas_no_soportadas==False:
-            if 'ERROR EN LA CARGA' in COOP:
-                barra()
-                print('Se detecto un error en la carga de los datos, por favor revise los datos introducidos que se muestras a continuacion')
-                Se_Encontro_Error_en_la_carga=True
-                barra()
-        if (Modo_Seguro==True or 
-            Se_Encontro_Error_en_la_carga==True):
-            while True:
-                mostrarlista()
-                spam=input('Desea Modificar algo? Si es asi, introduzca el indice (Numero a la izquierda). En el caso de que este todo bien, apretar enter\n')
-                if spam != '':
-                    COOP[int(spam)]=input('Que valor deberia tener esto?\n')
-                else:
+                                Se_encontro_droga=True
+                            if 'AMARI' in Dictado_de_la_pericia[i]:
+                                Paco+=Peso_de_sustancia
+                                Paco=round(Paco,3)
+                                Dictado_de_la_pericia[i]='wea'
+                                Se_encontro_droga=True
+            #ESTA PARTE SIRVE PARA DETECTAR CUANDO HAY LIMPIO O ESO
+            foo=getData(doc,'FINALIZADO EL PROCEDIMIENTO','EL MATERIAL REMANENTE DEVUELTO')
+            if 'PLANT' in foo:
+                print('Se detecto la presencia de plantas. No hay chance de que pueda automatizar eso, asi que voy a meterlo como marihuana y modificalo en donde sea necesario(necesitaria introducir MUCHAS lineas de codigo para algo que pasa 1 vez por mes, y tengo hambre en este momento)')
+                COOP[15]=('420')
+                drg['MARIHUANA']='420'   
+            Drogas_No_Soportadas=['NO CONCLUYENTE','LIMPIO','BICARBONATO','ALMIDON','KETAMINA','PARACETAMOL']
+            Se_encontraron_drogas_no_soportadas=False            
+            for weas in Drogas_No_Soportadas:
+                if weas in foo: 
+                    msg=(
+                        f'Se ha detectado la presencia de algun tipo de sustancia {weas} la cual NO es soportada por este programa "de manera automatica"\n'
+                        f'Por favor, introduzca el nombre de la sustancia (asi aparecera en la hoja de ruta y eso) y el peso\n'
+                        f'Aca tenes el resultado del trunarc para guiarte\n {foo}')
+                    print(msg)
+                    Se_encontraron_drogas_no_soportadas=True
+                    Drogas_No_Soportada=input('Nombre de la droga?\n')
+                    Peso_droga_no_soportada=input('Peso de la droga?\n')
+                    if '.' in Peso_droga_no_soportada:
+                        Peso_droga_no_soportada=Peso_droga_no_soportada.replace('.',',')
+                    drg[Drogas_No_Soportada]=Peso_droga_no_soportada
+                    print('\n')
+                    barra()
+                    print(f'ACORDATE MODIFICAR EL PESO DE LAS OTRAS DROGAS, EL PROGRAMA NO PUEDE DISTINGUIR ENTRE {Drogas_No_Soportada} y el resto')
+                    barra()
+                    input()
                     break
-        #-------------------------------------------------------------------------------------------------------------------------------                        
-        #CREACION DE LISTAS Y DATAFRAMES Y OTRAS COSAS QUE NECESITE HACER PARA QUE FUNCIONE ESTA WEA QLA
-        if Tipo_de_Magisterio=='FISCALIA': #SI ES FISCALIA, VA F+ EL NUMERO SIN SECRETARIA
-            PRODUCTIVIDAD=[COOP[11],COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',Numero_de_comisaria,Numero_de_Fiscalia,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
-            ODI92=[COOP[0],COOP[11],COOP[12],Numero_de_Fiscalia,'S1',Numero_de_comisaria,COOP[1],]
-            LIBRO_VIRTUAL=[COOP[0],'',COOP[11],COOP[10],Numero_de_Fiscalia,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],Sobre,'LEY 23.737', COOP[10],COOP[11],Numero_de_comisaria]
-            PERICIAS_ADEUDADAS=[COOP[11],COOP[11],COOP[11],COOP[10],Sobre, 'TEST ORIENTATIVO Y PESAJE','LEY 23737', '',COOP[1],Numero_de_comisaria,Numero_de_Fiscalia]
-        elif Tipo_de_Magisterio=='JUZGADO': #SI ES JUZGADO, VA J+NUMERO+S+NUMERO
-            PRODUCTIVIDAD=[COOP[11],COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',Numero_de_comisaria,Numero_de_Juzgado_y_Secretaria,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
-            ODI92=[COOP[0],COOP[11],COOP[12],Numero_de_Juzgado,COOP[7],Numero_de_comisaria,COOP[1]]
-            LIBRO_VIRTUAL=[COOP[0],'',COOP[11],COOP[10],Numero_de_Juzgado,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],Sobre,'LEY 23.737',COOP[10],COOP[11],Numero_de_comisaria]
-            PERICIAS_ADEUDADAS=[COOP[11],COOP[11],COOP[11],COOP[10],Sobre, 'TEST ORIENTATIVO Y PESAJE','LEY 23737', '',COOP[1],Numero_de_comisaria,Numero_de_Juzgado_y_Secretaria]
-        i=0
-        ODI92_EXTRA_DROGA=[]
-        for k,v in drg.items(): #con esto agrego las drogas encontradas
-            if i==0:
-                ODI92.extend([k,'',v,'GRAMOS'])
-                i+=1                                    
+            if 'CLORHIDRATO DE COCAINA' not in foo:
+                if Se_encontraron_drogas_no_soportadas== True:
+                    Coca=0
+            if 'BASE DE COCAINA' not in foo:
+                if Se_encontraron_drogas_no_soportadas== True:
+                    Paco=0
+            if Mari != 0:
+                Mari=str(Mari).replace('.',',')
+                COOP[15]=(Mari)
+                drg['MARIHUANA']=Mari
             else:
-                ODI92_EXTRA_DROGA=['','','','','','','',k,'',v,'GRAMOS']
-            if i==0:
-                ODI92.extend(['Error en la carga de la droga','Error en la carga de la droga','Error en la carga de la droga','Error en la carga de la droga'])
-        #-------------------------------------------------------------------------------------------------------------------------------    
-        #Pasaje a excels
-        wb = openpyxl.load_workbook('info.xlsx')                
-        ws = wb.active
-        sheet=wb['LIBRO']
-        for ColumnNum in range(len(Titulo_LIBRO)):
-            sheet.cell(row=CANTIDAD_DE_COOPERACIONES_HECHAS+2, column=ColumnNum+1).value =LIBRO_VIRTUAL[ColumnNum]
-        sheet=wb["PRODUCTIVIDAD"]
-        for ColumnNum in range(len(Titulo_PROD)):
-            sheet.cell(row=CANTIDAD_DE_COOPERACIONES_HECHAS+2, column=ColumnNum+1).value =PRODUCTIVIDAD[ColumnNum]
-        sheet=wb["ODI92"]
-        for ColumnNum in range(len(Titulo_ODI92)):
-            sheet.cell(row=CONTADOR_DE_FILAS_PARA_ODI92+2, column=ColumnNum+1).value =ODI92[ColumnNum]
-        if ODI92_EXTRA_DROGA: #SI HAY MAS DE UNA DROGA
-            CONTADOR_DE_FILAS_PARA_ODI92+=1
+                COOP[15]=('NO HAY')
+            if Coca != 0:                               
+                Coca=str(Coca).replace('.',',')
+                COOP[16]=(Coca)
+                drg['CLORHIDRATO DE COCAINA']=Coca 
+            else:
+                COOP[16]=('NO HAY')
+            if Paco !=0:
+                Paco=str(Paco).replace('.',',')
+                COOP[17]=(Paco)
+                drg['BASE DE COCAINA']=Paco    
+            else:
+                COOP[17]=('NO HAY')
+            if (Se_encontro_droga==False and 
+                Se_encontraron_drogas_no_soportadas==False):   
+                print('Okay, El programa NO detecto NINGUNA DROGA, sea porque no habia o porque no se usaron las palabras (que yo considero) normales. Metele un Sustancia/pulverulenta/amarillenta/etc en algun lado la proxima. Por ahora, para que el programa no EXPLOQUE le voy a mandar un Marihuana con peso 420_420. Reemplazalo en las hojas de ruta o al final.(O saca la cooperacion y hacela a mano, vago)')      
+                COOP[15]='420_420'
+                drg['MARIHUANA']='420_420'
+            #-------------------------------------------------------------------------------------------------------------------------------
+            #CANTIDAD DE SOBRES
+            try:
+                Dictado_de_la_pericia=getData(doc,'REALIZAR LA APERTURA','FINALIZADO EL PROCEDIMIENTO')
+                Patron_Sobre=re.compile(r'(SOBRE(S)?)')
+                if Patron_Sobre.search(Dictado_de_la_pericia):
+                    _=Patron_Sobre.search(Dictado_de_la_pericia).group()
+                    bacon=Dictado_de_la_pericia.replace(_,_+' WEA')
+                    Sobre=getData(bacon,'CONTENIDO DE','WEA')
+                    if len(Sobre)>15:
+                        raise Error
+                else:
+                    raise Error
+            except:
+                Sobre=input('Hubo un error. Cuantos sobres (u otra cosa) hay en esta pericia? Introduzcalo a continuacion, por ejemplo "DOS SOBRES"    ')
+            #-------------------------------------------------------------------------------------------------------------------------------            
+            #CHECKEO QUE ESTE TODO BIEN. RE HACER TODO. VER COMO HAGO PARA QUE NO       
+            for i in range(len(COOP)):
+                if len(str(COOP[i]))>70:
+                    msg=(f'El programa detecto que el siguiente dato es muy largo, se puede deber a un problema de lectura o por ahi esta bien.'
+                        f'Reviselo por las dudas:\n{COOP[i]}\nSi esta todo bien, presione enter. Si desea cambiarlo, presione cualquier otro boton')
+                    print(msg)
+                    if input()!='':
+                        COOP[i]=input('Introduzca por favor el valor correcto (o una version mas resumida, sin omitir los datos IMPORTANTES)')
+                    
+
+            #-------------------------------------------------------------------------------------------------------------------------------            
+            #Checkeo al final SI ESTA EN "MODO SEGURO"
+            if Se_encontraron_drogas_no_soportadas==False:
+                if 'ERROR EN LA CARGA' in COOP:
+                    barra()
+                    print('Se detecto un error en la carga de los datos, por favor revise los datos introducidos que se muestras a continuacion')
+                    Se_Encontro_Error_en_la_carga=True
+                    barra()
+            if (Modo_Seguro==True or 
+                Se_Encontro_Error_en_la_carga==True):
+                while True:
+                    mostrarlista()
+                    spam=input('Desea Modificar algo? Si es asi, introduzca el indice (Numero a la izquierda). En el caso de que este todo bien, apretar enter\n')
+                    if spam != '':
+                        try:
+                            Dato_corregido=input('Que valor deberia tener esto?\n')
+                            try:
+                                if '+' in Dato_corregido:
+                                    Dato_corregido=Dato_corregido.replace(',','.')
+                                    Lista_de_numeros_a_sumar=Dato_corregido.split('+')
+                                    Dato_corregido_final=0
+                                    for Numeros in Lista_de_numeros_a_sumar:
+                                        Numeros.strip(' ')
+                                        Dato_corregido_final+=float(Numeros)
+
+                                    Dato_corregido_final=str(round(Dato_corregido_final,3)   )
+                            except:
+                                print('Soy malisimo haciendo QUICK MATH')
+                            COOP[int(spam)]=Dato_corregido
+                        except:
+                            print('Error, checkea bien lo que tipeas\n')
+                            continue
+                    else:
+                        break
+            #-------------------------------------------------------------------------------------------------------------------------------                        
+            #CREACION DE LISTAS Y DATAFRAMES Y OTRAS COSAS QUE NECESITE HACER PARA QUE FUNCIONE ESTA WEA QLA
+            if Tipo_de_Magisterio=='F': #SI ES FISCALIA
+                PRODUCTIVIDAD=[COOP[11],COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',Numero_de_comisaria,Numero_de_Fiscalia,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
+                ODI92=[COOP[0],COOP[11],COOP[12],Numero_de_Fiscalia,'S1',Numero_de_comisaria,COOP[1],]
+                LIBRO_VIRTUAL=[COOP[0],'',COOP[11],COOP[10],Numero_de_Fiscalia,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],Sobre,'LEY 23.737', COOP[10],COOP[11],Numero_de_comisaria]
+                PERICIAS_ADEUDADAS=[COOP[11],COOP[11],COOP[11],COOP[10],Sobre, 'TEST ORIENTATIVO Y PESAJE','LEY 23737', '',COOP[1],Numero_de_comisaria,Numero_de_Fiscalia]
+            elif Tipo_de_Magisterio=='J': #SI ES JUZGADO
+                PRODUCTIVIDAD=[COOP[11],COOP[0],'DIVISION QUIMICA INDUSTRIAL Y ANALISIS FISICOS Y QUIMICOS', COOP[1], 'INF. LEY 23737',Numero_de_comisaria,Numero_de_Juzgado_y_Secretaria,'EDIFICIO CENTRAL',COOP[10],'TEST ORIENTATIVO Y PESAJE' ]
+                ODI92=[COOP[0],COOP[11],COOP[12],Numero_de_Juzgado,COOP[7],Numero_de_comisaria,COOP[1]]
+                LIBRO_VIRTUAL=[COOP[0],'',COOP[11],COOP[10],Numero_de_Juzgado,COOP[6],COOP[7], COOP[8], COOP[1],'INFRACCION A LA LEY 23.737','LEY Y SOCIEDAD',COOP[9],Sobre,'LEY 23.737',COOP[10],COOP[11],Numero_de_comisaria]
+                PERICIAS_ADEUDADAS=[COOP[11],COOP[11],COOP[11],COOP[10],Sobre, 'TEST ORIENTATIVO Y PESAJE','LEY 23737', '',COOP[1],Numero_de_comisaria,Numero_de_Juzgado_y_Secretaria]
+            ODI92_EXTRA_DROGA=[]
+            for index,(Tipo_de_droga,Cantidad_de_Droga) in enumerate(drg.items()): #con esto agrego las drogas encontradas
+                try:
+                    if index==0:
+                        ODI92.extend([Tipo_de_droga,'',Cantidad_de_Droga,'GRAMOS'])
+                    else:
+                        ODI92_EXTRA_DROGA=['','','','','','','',Tipo_de_droga,'',Cantidad_de_Droga,'GRAMOS']
+                except:
+                    if index==0:
+                        ODI92.extend(['Error en la carga de la droga','Error en la carga de la droga','Error en la carga de la droga','Error en la carga de la droga'])
+            #-------------------------------------------------------------------------------------------------------------------------------    
+            #Pasaje a excels
+            wb = openpyxl.load_workbook('info.xlsx')                
+            ws = wb.active
+            sheet=wb['LIBRO']
+            Fila_a_completar=ws.max_row+1
+            for ColumnNum in range(len(Titulo_LIBRO)):
+                sheet.cell(row=Fila_a_completar, column=ColumnNum+1).value =LIBRO_VIRTUAL[ColumnNum]
+            sheet=wb["PRODUCTIVIDAD"]
+            for ColumnNum in range(len(Titulo_PROD)):
+                sheet.cell(row=Fila_a_completar, column=ColumnNum+1).value =PRODUCTIVIDAD[ColumnNum]
+            sheet=wb["ODI92"]
             for ColumnNum in range(len(Titulo_ODI92)):
-                sheet.cell(row=CONTADOR_DE_FILAS_PARA_ODI92+2, column=ColumnNum+1).value =ODI92_EXTRA_DROGA[ColumnNum]
-        sheet=wb['PERICIAS ADEUDADAS']
-        for ColumnNum in range(len(Titulo_Pericias)):
-            sheet.cell(row=CANTIDAD_DE_COOPERACIONES_HECHAS+2, column=ColumnNum+1).value =PERICIAS_ADEUDADAS[ColumnNum]
-        wb.save('info.xlsx')     
+                sheet.cell(row=Fila_a_completar, column=ColumnNum+1).value =ODI92[ColumnNum]
+            if ODI92_EXTRA_DROGA: #SI HAY MAS DE UNA DROGA
+                CONTADOR_DE_FILAS_PARA_ODI92+=1
+                for ColumnNum in range(len(Titulo_ODI92)):
+                    sheet.cell(row=Fila_a_completar, column=ColumnNum+1).value =ODI92_EXTRA_DROGA[ColumnNum]
+            sheet=wb['PERICIAS ADEUDADAS']
+            for ColumnNum in range(len(Titulo_Pericias)):
+                sheet.cell(row=Fila_a_completar, column=ColumnNum+1).value =PERICIAS_ADEUDADAS[ColumnNum]
+            wb.save('info.xlsx')     
 
-        #-------------------------------------------------------------------------------------------------------------------------------    
-        #Exportacion de los datos para para cargar a GAP/SADE
-        COOP_PARA_ARCHIVO_CSV=COOP
-        COOP_PARA_ARCHIVO_CSV.append(Tipo_de_Magisterio)
-        Perito=Nums[COOP[10]]
-        COOP_PARA_ARCHIVO_CSV.append(Perito)
-        if Se_encontraron_drogas_no_soportadas==True:
-            COOP_PARA_ARCHIVO_CSV.append('NS')
-            COOP_PARA_ARCHIVO_CSV.append(Drogas_No_Soportada)
-            COOP_PARA_ARCHIVO_CSV.append(drg[Drogas_No_Soportada])
-        else:
-            COOP_PARA_ARCHIVO_CSV.append('')
-            COOP_PARA_ARCHIVO_CSV.append('')
-            COOP_PARA_ARCHIVO_CSV.append('')
-        with open((COOP[0]+'.csv'), 'w', newline='') as myfile:
-            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            wr.writerow(COOP_PARA_ARCHIVO_CSV)
-            myfile.close()
-
-        #-------------------------------------------------------------------------------------------------------------------------------            
-        #ACA VA LA HOJA DE RUTA
-        shutil.copy('HDR.docx', 'HOJA DE RUTA DE {}.docx'.format(COOP[0]))
-        hdr= docx.Document('HOJA DE RUTA DE {}.docx'.format(COOP[0]))
-        replace_string(hdr,'!',COOP[0])
-        replace_string(hdr,'$',COOP[11])
-        replace_string(hdr,'%',COOP[1])
-        replace_string(hdr,'&',Numero_de_comisaria)
-        if Tipo_de_Magisterio=='FISCALIA':
-            replace_string(hdr,'*',('FISCALIA PENAL CONTRAVENCIONAL Y DE FALTAS N°'+COOP[5]+' A CARGO DE '+COOP[6]))
-            replace_string(hdr,'ç',(COOP[7]+' A CARGO DE '+COOP[8]))
-        elif Tipo_de_Magisterio=='JUZGADO':
-            replace_string(hdr,'*',('JUZGADO NACIONAL EN LO CRIMINAL Y CORRECCIONAL N°'+COOP[5]+' A CARGO DE '+COOP[6]))
-            replace_string(hdr,'ç',(COOP[7]+' A CARGO DE '+COOP[8]))
-        else:
-            print('Error importante, no puedo identificar si es Fiscalia o Juzgado, se dejara esa parte de la hoja de ruta en blanco')
-        replace_string(hdr,'¨',COOP[9])
-        replace_string(hdr,'<',(COOP[10]+'  DNI/LP: '+ Nums[COOP[10]]))
-        replace_string(hdr,'>',(COOP[3]+' LP: '+COOP[2]))
-        replace_string(hdr,'+',COOP[12])
-        replace_string(hdr,'-',COOP[13])
-        if COOP[14]!='NO HAY':
-            replace_string(hdr,'DR1',('MDMA: '+COOP[14]))
-        else:
-            replace_string(hdr,'DR1','')
-        if COOP[15]!='NO HAY':
-            replace_string(hdr,'DR2',('M: '+COOP[15]))
-        else:
-            replace_string(hdr,'DR2','')
-        if COOP[16]!='NO HAY':
-            replace_string(hdr,'DR3',('CC: '+COOP[16]))
-        else:
-            replace_string(hdr,'DR3','')
-        if COOP[17]!='NO HAY':
-            replace_string(hdr,'DR4',('BC: '+COOP[17]))
-        else:
-            replace_string(hdr,'DR4','')
-        try:
+            #-------------------------------------------------------------------------------------------------------------------------------    
+            #Exportacion de los datos para para cargar a GAP/SADE
+            COOP_PARA_ARCHIVO_CSV=COOP
+            COOP_PARA_ARCHIVO_CSV.append(Tipo_de_Magisterio)
+            Perito=Nums[COOP[10]]
+            COOP_PARA_ARCHIVO_CSV.append(Perito)
             if Se_encontraron_drogas_no_soportadas==True:
-                replace_string(hdr,'DR5',(Drogas_No_Soportada+' :'+drg[Drogas_No_Soportada]))
+                COOP_PARA_ARCHIVO_CSV.append('NS')
+                COOP_PARA_ARCHIVO_CSV.append(Drogas_No_Soportada)
+                COOP_PARA_ARCHIVO_CSV.append(drg[Drogas_No_Soportada])
             else:
-                replace_string(hdr,'DR5','')
-        except:
-            print('Estas usando una HDR.docx viejita. Usa la que tiene la fila DR5 asi el programa sirve para drogas no soportadas')
-        hdr.save('HOJA DE RUTA DE {}.docx'.format(COOP[0]))                
-        CANTIDAD_DE_COOPERACIONES_HECHAS+=1
-        CONTADOR_DE_FILAS_PARA_ODI92+=1
-        Cantidad_de_cooperaciones_leidas.append(COOP[0])
+                COOP_PARA_ARCHIVO_CSV.append('')
+                COOP_PARA_ARCHIVO_CSV.append('')
+                COOP_PARA_ARCHIVO_CSV.append('')
+            with open((COOP[0]+'.csv'), 'w', newline='') as myfile:
+                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+                wr.writerow(COOP_PARA_ARCHIVO_CSV)
+                myfile.close()
 
+            #-------------------------------------------------------------------------------------------------------------------------------            
+            #ACA VA LA HOJA DE RUTA
+            shutil.copy('HDR.docx', 'HOJA DE RUTA DE {}.docx'.format(COOP[0]))
+            hdr= docx.Document('HOJA DE RUTA DE {}.docx'.format(COOP[0]))
+            replace_string(hdr,'!',COOP[0])
+            replace_string(hdr,'$',COOP[11])
+            replace_string(hdr,'%',COOP[1])
+            replace_string(hdr,'&',Numero_de_comisaria)
+            if Tipo_de_Magisterio=='F':
+                replace_string(hdr,'*',(f'FISCALIA PENAL CONTRAVENCIONAL Y DE FALTAS N°{COOP[5]} A CARGO DE {COOP[6]}'))
+                replace_string(hdr,'ç',(f'{COOP[7]} A CARGO DE {COOP[8]}'))
+            elif Tipo_de_Magisterio=='J':
+                replace_string(hdr,'*',(f'JUZGADO NACIONAL EN LO CRIMINAL Y CORRECCIONAL N°{COOP[5]} A CARGO DE {COOP[6]}'))
+                replace_string(hdr,'ç',(f'{COOP[7]} A CARGO DE {COOP[8]}'))
+            else:
+                print('Error importante, no puedo identificar si es Fiscalia o Juzgado, se dejara esa parte de la hoja de ruta en blanco')
+            replace_string(hdr,'¨',COOP[9])
+            replace_string(hdr,'<',(f'{COOP[10]} DNI/LP: {Nums[COOP[10]]}'))
+            replace_string(hdr,'>',(f'{COOP[3]} LP: {COOP[2]}'))
+            replace_string(hdr,'+',COOP[12])
+            replace_string(hdr,'-',COOP[13])
+            if COOP[14]!='NO HAY':
+                replace_string(hdr,'DR1',(f'MDMA: {COOP[14]}'))
+            else:
+                replace_string(hdr,'DR1','')
+            if COOP[15]!='NO HAY':
+                replace_string(hdr,'DR2',(f'M: {COOP[15]}'))
+            else:
+                replace_string(hdr,'DR2','')
+            if COOP[16]!='NO HAY':
+                replace_string(hdr,'DR3',(f'CC: {COOP[16]}'))
+            else:
+                replace_string(hdr,'DR3','')
+            if COOP[17]!='NO HAY':
+                replace_string(hdr,'DR4',(f'BC: {COOP[17]}'))
+            else:
+                replace_string(hdr,'DR4','')
+            try:
+                if Se_encontraron_drogas_no_soportadas==True:
+                    replace_string(hdr,'DR5',(f'{Drogas_No_Soportada} : {drg[Drogas_No_Soportada]}'))
+                else:
+                    replace_string(hdr,'DR5','')
+            except:
+                print('Estas usando una HDR.docx viejita. Usa la que tiene la fila DR5 asi el programa sirve para drogas no soportadas')
+            hdr.save(f'HOJA DE RUTA DE {COOP[0]}.docx')                
+            CANTIDAD_DE_COOPERACIONES_HECHAS+=1
+            CONTADOR_DE_FILAS_PARA_ODI92+=1
+            Cantidad_de_cooperaciones_leidas.append(COOP[0])
+        except:
+            input('HRM, paso algo terrible con esta Cooperacion. Se arreglara en la siguiente version (?). El programa continuara salteandose esta cooperacion.\nAprete cualquier cosa para continuar\n')
+            continue
 #-------------------------------------------------------------------------------------------------------------------------------
 #BORRO LOS DOCX CREADOS AL PEDO
 for filename in os.listdir():
@@ -806,6 +938,6 @@ for filename in os.listdir():
 barra()
 print('Programa terminado. :^D')
 Cantidad_de_cooperaciones_leidas=', '.join(Cantidad_de_cooperaciones_leidas)    
-print('Se leyeron las siguientes cooperaciones: {}'.format(Cantidad_de_cooperaciones_leidas))    
+print(f'Se leyeron las siguientes cooperaciones: {Cantidad_de_cooperaciones_leidas}')    
 barra()
 input('Nos vemos la proxima! Besis.\nPresione enter para salir')
